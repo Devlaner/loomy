@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Dict, List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

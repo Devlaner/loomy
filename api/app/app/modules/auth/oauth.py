@@ -1,6 +1,6 @@
 """OAuth provider configs and token fetch."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import httpx
 
