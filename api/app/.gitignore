@@ -1,0 +1,41 @@
+# Bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Build and packaging
+build/
+dist/
+*.egg
+*.egg-info/
+*.egg-info
+wheels/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Testing and coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store

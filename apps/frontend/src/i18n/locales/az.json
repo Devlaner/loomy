@@ -1,0 +1,101 @@
+{
+  "common": {
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "login": "Daxil ol",
+    "signUp": "Qeydiyyat",
+    "logout": "Çıxış",
+    "email": "E-poçt",
+    "password": "Şifrə",
+    "username": "İstifadəçi adı",
+    "continue": "Davam et",
+    "cancel": "Ləğv et",
+    "save": "Saxla",
+    "back": "Geri"
+  },
+  "landing": {
+    "hero": {
+      "title": "Fikirləri birlikdə əməkdaşlıq edin",
+      "subtitle": "Loomy sizin yumşaq, sonsuz lövhənizdir. Lövhələr yaradın, komandanızı dəvət edin və fikirləri real vaxtda həyata keçirin.",
+      "cta": "Pulsuz başlayın",
+      "secondary": "Necə işləyir"
+    },
+    "features": {
+      "title": "Əməkdaşlıq üçün hazırlanıb",
+      "boards": "Sonsuz lövhələr",
+      "boardsDesc": "Fikirləriniz üçün limitsiz yer",
+      "realtime": "Real vaxt sinxronizasiyası",
+      "realtimeDesc": "Dəyişiklikləri ani görün",
+      "elements": "Zəngin elementlər",
+      "elementsDesc": "Fiqurlar, yapışqanlar, birləşdiricilər"
+    },
+    "footer": {
+      "tagline": "Açıq mənbə əməkdaş lövhə"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Xoş gəldiniz",
+      "subtitle": "Hesabınıza daxil olun",
+      "noAccount": "Hesabınız yoxdur?",
+      "withGitHub": "GitHub ilə davam et",
+      "withGoogle": "Google ilə davam et",
+      "or": "və ya"
+    },
+    "register": {
+      "title": "Hesab yaradın",
+      "subtitle": "Saniyələr içində əməkdaşlıq edin",
+      "hasAccount": "Artıq hesabınız var?"
+    }
+  },
+  "dashboard": {
+    "title": "İdarə paneli",
+    "home": "Ana səhifə",
+    "recent": "Son",
+    "starred": "Seçilmiş",
+    "spaces": "Məkanlar",
+    "workspaces": "İş sahələri",
+    "boards": "Lövhələr",
+    "boardsInTeam": "Bu komandada lövhələr",
+    "createWorkspace": "İş sahəsi yarat",
+    "createBoard": "Lövhə yarat",
+    "createNew": "Yeni yarat",
+    "recentBoards": "Son lövhələr",
+    "exploreTemplates": "Şablonları kəşf et",
+    "blankBoard": "Boş lövhə",
+    "templatesFor": "Şablonlar",
+    "searchPlaceholder": "Başlıq və ya mövzuya görə axtar",
+    "filterAll": "Bütün lövhələr",
+    "filterOwned": "Mənim lövhələrim",
+    "sortLastOpened": "Son dəyişdirildi",
+    "sortName": "Ad",
+    "sortCreated": "Yaradıldı",
+    "lastModified": "Son dəyişdirildi",
+    "owner": "Sahib",
+    "name": "Ad",
+    "you": "Siz",
+    "inviteMembers": "Üzvləri dəvət et",
+    "notifications": "Bildirişlər",
+    "noBoards": "Hələ lövhə yoxdur",
+    "noBoardsHint": "Başlamaq üçün ilk lövhənizi yaradın",
+    "selectWorkspace": "Başlamaq üçün iş sahəsi seçin və ya yaradın",
+    "renameBoard": "Yenidən adlandır",
+    "duplicateBoard": "Dublikat",
+    "deleteBoard": "Sil",
+    "share": "Paylaş",
+    "copyBoardLink": "Lövhə linkini kopyala",
+    "openInNewTab": "Yeni vərəqdə aç",
+    "starThisBoard": "Bu lövhəni seç",
+    "unstarThisBoard": "Bu lövhəni seçimdən çıxar",
+    "changeThumbnail": "Miniatürü dəyişdir",
+    "boardDetails": "Lövhə təfərrüatları",
+    "makeBoardPrivate": "Lövhəni gizli et",
+    "downloadBoardBackup": "Lövhə ehtiyatını yüklə",
+    "moveToTeam": "Komandaya köçür",
+    "leave": "Çıx",
+    "renameWorkspace": "İş sahəsini yenidən adlandır",
+    "deleteWorkspace": "İş sahəsini sil",
+    "inviteByEmail": "E-poçtla dəvət et",
+    "workspaceSettings": "İş sahəsi parametrləri"
+  }
+}

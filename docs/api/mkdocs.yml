@@ -1,0 +1,62 @@
+site_name: Loomy API
+site_description: Open-source collaborative whiteboard API documentation
+site_url: https://loomy.devlane.dev
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - toc.follow
+
+plugins:
+  - search:
+      lang: en
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            docstring_style: google
+
+nav:
+  - Home: index.md
+  - Overview: overview.md
+  - Authentication: auth.md
+  - Endpoints:
+    - Users: endpoints/users.md
+    - Auth: endpoints/auth.md
+    - Workspaces: endpoints/workspaces.md
+    - Boards: endpoints/boards.md
+    - Elements: endpoints/elements.md
+  - WebSocket: websocket.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - admonition
+  - tables

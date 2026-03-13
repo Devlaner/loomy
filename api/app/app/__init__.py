@@ -1,0 +1,1 @@
+"""Loomy API application."""

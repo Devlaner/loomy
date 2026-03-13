@@ -1,0 +1,120 @@
+/**
+ * Loomy Design Tokens
+ * Soft, gentle design system – matches the "Loomy" name
+ * Supports light, dark, and soft themes
+ */
+
+:root {
+  /* Spacing – soft, generous */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* Border radius – rounded, soft */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* Shadows – subtle, soft */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.08);
+  --shadow-xl: 0 24px 48px rgb(0 0 0 / 0.1);
+
+  /* Typography */
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* Light theme (default) */
+[data-theme="light"],
+:root {
+  --bg-primary: #faf9f7;
+  --bg-secondary: #f5f3f0;
+  --bg-tertiary: #ebe8e4;
+  --bg-elevated: #ffffff;
+
+  --text-primary: #2c2a26;
+  --text-secondary: #5c5954;
+  --text-muted: #8c8882;
+
+  --accent: #7c6fdb;
+  --accent-hover: #6b5ec9;
+  --accent-muted: #e8e5f5;
+  --accent-soft: #f4f2fc;
+
+  --border: #e5e2de;
+  --border-focus: #7c6fdb;
+
+  --success: #5a9b6e;
+  --warning: #d4a13a;
+  --error: #c65d5d;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-primary: #1c1b19;
+  --bg-secondary: #242320;
+  --bg-tertiary: #2e2d2a;
+  --bg-elevated: #2c2b28;
+
+  --text-primary: #f5f3f0;
+  --text-secondary: #b5b2ad;
+  --text-muted: #8c8882;
+
+  --accent: #9d92e8;
+  --accent-hover: #b0a7ed;
+  --accent-muted: #3d3659;
+  --accent-soft: #2d2844;
+
+  --border: #3d3b38;
+  --border-focus: #9d92e8;
+
+  --success: #6bb880;
+  --warning: #e4b54a;
+  --error: #d97070;
+}
+
+/* Soft theme – cozy pastel mood */
+[data-theme="soft"] {
+  --bg-primary: #fbf3ff; /* soft lilac wash */
+  --bg-secondary: #f5e9ff; /* sidebar / panels */
+  --bg-tertiary: #ecddff; /* subtle stripes / hovers */
+  --bg-elevated: #ffffff;
+
+  --text-primary: #32263b;
+  --text-secondary: #6b5b78;
+  --text-muted: #a093b2;
+
+  --accent: #f08fb6; /* warm rose accent */
+  --accent-hover: #e16a9a;
+  --accent-muted: #fde5f0;
+  --accent-soft: #fef2f7;
+
+  --border: #e4d4ff;
+  --border-focus: #f08fb6;
+
+  --success: #78c2a4;
+  --warning: #f2c46b;
+  --error: #e38a8a;
+}

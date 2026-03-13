@@ -1,0 +1,21 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE and editor
+.cursor/
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Logs and temp
+*.log
+*.tmp
+.cache/

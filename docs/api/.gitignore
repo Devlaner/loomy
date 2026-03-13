@@ -1,0 +1,15 @@
+# Generated site (e.g. MkDocs, Sphinx, or static build)
+site/
+
+# Dependencies (if docs use npm/pip)
+node_modules/
+
+# Python (if docs use venv or scripts)
+__pycache__/
+.venv/
+.env
+
+# OS and editor
+.DS_Store
+.idea/
+.vscode/

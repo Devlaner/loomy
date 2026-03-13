@@ -1,0 +1,147 @@
+import re
+import secrets
+from typing import Tuple, List
+from uuid import UUID
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
+
+from app.modules.workspaces.model import Workspace, WorkspaceMember
+
+
+def _slugify(text: str) -> str:
+    s = (text or "").lower().strip()
+    s = re.sub(r"[^\w\s-]", "", s)
+    s = re.sub(r"[-\s]+", "-", s).strip("-")
+    return s[:100] or "workspace"
+
+
+def get_by_slug(db: Session, slug: str) -> Workspace | None:
+    return db.query(Workspace).filter(Workspace.slug == slug).first()
+
+
+def make_unique_slug(db: Session, base_slug: str) -> str:
+    """Return a unique slug, appending random digits if base_slug exists."""
+    slug = _slugify(base_slug) or "workspace"
+    while get_by_slug(db, slug):
+        slug = f"{slug}-{secrets.randbelow(10000):04d}"
+    return slug
+
+
+def get_by_id(db: Session, workspace_id: UUID) -> Workspace | None:
+    return (
+        db.query(Workspace)
+        .options(joinedload(Workspace.owner))
+        .filter(Workspace.id == workspace_id)
+        .first()
+    )
+
+
+def get_by_owner(
+    db: Session, owner_id: UUID, page: int = 1, limit: int = 20
+) -> Tuple[List[Workspace], int]:
+    offset = (page - 1) * limit
+    query = db.query(Workspace).filter(Workspace.owner_id == owner_id)
+    total = db.query(func.count(Workspace.id)).filter(Workspace.owner_id == owner_id).scalar() or 0
+    items = query.order_by(Workspace.created_at.desc()).offset(offset).limit(limit).all()
+    return items, total
+
+
+def get_user_workspaces(
+    db: Session, user_id: UUID, page: int = 1, limit: int = 20
+) -> Tuple[List[Workspace], int]:
+    offset = (page - 1) * limit
+    member_workspace_ids = [
+        r[0]
+        for r in db.query(WorkspaceMember.workspace_id)
+        .filter(WorkspaceMember.user_id == user_id)
+        .all()
+    ]
+    if member_workspace_ids:
+        query = (
+            db.query(Workspace)
+            .options(joinedload(Workspace.owner))
+            .filter((Workspace.owner_id == user_id) | (Workspace.id.in_(member_workspace_ids)))
+        )
+    else:
+        query = (
+            db.query(Workspace)
+            .options(joinedload(Workspace.owner))
+            .filter(Workspace.owner_id == user_id)
+        )
+    total = query.count()
+    items = query.order_by(Workspace.created_at.desc()).offset(offset).limit(limit).all()
+    return items, total
+
+
+def create(db: Session, *, name: str, slug: str, owner_id: UUID) -> Workspace:
+    workspace = Workspace(name=name, slug=slug, owner_id=owner_id)
+    db.add(workspace)
+    db.commit()
+    db.refresh(workspace)
+    member = WorkspaceMember(workspace_id=workspace.id, user_id=owner_id, role="owner")
+    db.add(member)
+    db.commit()
+    return workspace
+
+
+def update(db: Session, workspace: Workspace, *, name: str | None = None) -> Workspace:
+    if name is not None:
+        workspace.name = name
+    db.commit()
+    db.refresh(workspace)
+    return workspace
+
+
+def delete(db: Session, workspace: Workspace) -> None:
+    db.delete(workspace)
+    db.commit()
+
+
+def is_member(db: Session, workspace_id: UUID, user_id: UUID) -> bool:
+    return (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def get_members(db: Session, workspace_id: UUID) -> List[WorkspaceMember]:
+    return (
+        db.query(WorkspaceMember)
+        .options(joinedload(WorkspaceMember.user))
+        .filter(WorkspaceMember.workspace_id == workspace_id)
+        .all()
+    )
+
+
+def add_member(
+    db: Session, workspace_id: UUID, user_id: UUID, role: str = "member"
+) -> WorkspaceMember | None:
+    if is_member(db, workspace_id, user_id):
+        return None
+    member = WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=role)
+    db.add(member)
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+def remove_member(db: Session, workspace_id: UUID, user_id: UUID) -> bool:
+    member = (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+        .first()
+    )
+    if not member:
+        return False
+    db.delete(member)
+    db.commit()
+    return True

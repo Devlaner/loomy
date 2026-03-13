@@ -1,0 +1,105 @@
+{
+  "common": {
+    "login": "Log in",
+    "signUp": "Sign up",
+    "logout": "Log out",
+    "email": "Email",
+    "password": "Password",
+    "username": "Username",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "save": "Save",
+    "back": "Back"
+  },
+  "landing": {
+    "hero": {
+      "title": "Collaborate on ideas, together",
+      "subtitle": "Loomy is your soft, infinite canvas. Create boards, invite your team, and bring ideas to life in real time.",
+      "cta": "Get started free",
+      "secondary": "See how it works"
+    },
+    "features": {
+      "title": "Designed for collaboration",
+      "boards": "Infinite boards",
+      "boardsDesc": "Unlimited space for your thoughts",
+      "realtime": "Real-time sync",
+      "realtimeDesc": "See changes instantly",
+      "elements": "Rich elements",
+      "elementsDesc": "Shapes, sticky notes, connectors"
+    },
+    "footer": {
+      "tagline": "Open-source collaborative whiteboard"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to your account",
+      "noAccount": "Don't have an account?",
+      "withGitHub": "Continue with GitHub",
+      "withGoogle": "Continue with Google",
+      "or": "or"
+    },
+    "register": {
+      "title": "Create your account",
+      "subtitle": "Start collaborating in seconds",
+      "hasAccount": "Already have an account?"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "home": "Home",
+    "recent": "Recent",
+    "starred": "Starred",
+    "spaces": "Spaces",
+    "workspaces": "Workspaces",
+    "boards": "Boards",
+    "boardsInTeam": "Boards in this team",
+    "createWorkspace": "Create workspace",
+    "createBoard": "Create board",
+    "createNew": "Create new",
+    "recentBoards": "Recent boards",
+    "exploreTemplates": "Explore templates",
+    "blankBoard": "Blank board",
+    "templatesFor": "Templates",
+    "searchPlaceholder": "Search by title or topic",
+    "filterAll": "All boards",
+    "filterOwned": "Owned by me",
+    "sortLastOpened": "Last modified",
+    "sortName": "Name",
+    "sortCreated": "Created",
+    "lastModified": "Last modified",
+    "owner": "Owner",
+    "name": "Name",
+    "you": "You",
+    "inviteMembers": "Invite members",
+    "notifications": "Notifications",
+    "noBoards": "No boards yet",
+    "noBoardsHint": "Create your first board to get started",
+    "selectWorkspace": "Select a workspace or create one to get started",
+    "renameBoard": "Rename",
+    "duplicateBoard": "Duplicate",
+    "deleteBoard": "Delete",
+    "share": "Share",
+    "copyBoardLink": "Copy board link",
+    "openInNewTab": "Open in new tab",
+    "starThisBoard": "Star this board",
+    "unstarThisBoard": "Unstar this board",
+    "changeThumbnail": "Change thumbnail",
+    "boardDetails": "Board details",
+    "makeBoardPrivate": "Make board private",
+    "downloadBoardBackup": "Download board backup",
+    "moveToTeam": "Move to Team",
+    "leave": "Leave",
+    "renameWorkspace": "Rename workspace",
+    "deleteWorkspace": "Delete workspace",
+    "inviteByEmail": "Invite by email",
+    "workspaceSettings": "Workspace settings",
+    "lastWeek": "Last week",
+    "older": "Older",
+    "noRecentBoards": "No recently opened boards. Open a board to see it here.",
+    "noStarredBoards": "No starred boards. Star a board from Home or Recent to see it here."
+  }
+}

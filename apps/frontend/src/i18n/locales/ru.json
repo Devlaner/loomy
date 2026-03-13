@@ -1,0 +1,101 @@
+{
+  "common": {
+    "firstName": "Имя",
+    "lastName": "Фамилия",
+    "login": "Войти",
+    "signUp": "Регистрация",
+    "logout": "Выйти",
+    "email": "Email",
+    "password": "Пароль",
+    "username": "Имя пользователя",
+    "continue": "Продолжить",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "back": "Назад"
+  },
+  "landing": {
+    "hero": {
+      "title": "Создавайте идеи вместе",
+      "subtitle": "Loomy — ваша мягкая бесконечная доска. Создавайте доски, приглашайте команду и воплощайте идеи в реальном времени.",
+      "cta": "Начать бесплатно",
+      "secondary": "Как это работает"
+    },
+    "features": {
+      "title": "Для совместной работы",
+      "boards": "Бесконечные доски",
+      "boardsDesc": "Неограниченное пространство для идей",
+      "realtime": "Синхронизация в реальном времени",
+      "realtimeDesc": "Видите изменения мгновенно",
+      "elements": "Богатые элементы",
+      "elementsDesc": "Фигуры, стикеры, коннекторы"
+    },
+    "footer": {
+      "tagline": "Открытая коллаборативная доска"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "С возвращением",
+      "subtitle": "Войдите в свой аккаунт",
+      "noAccount": "Нет аккаунта?",
+      "withGitHub": "Продолжить с GitHub",
+      "withGoogle": "Продолжить с Google",
+      "or": "или"
+    },
+    "register": {
+      "title": "Создайте аккаунт",
+      "subtitle": "Начните совместную работу за секунды",
+      "hasAccount": "Уже есть аккаунт?"
+    }
+  },
+  "dashboard": {
+    "title": "Панель управления",
+    "home": "Главная",
+    "recent": "Недавние",
+    "starred": "Избранное",
+    "spaces": "Пространства",
+    "workspaces": "Рабочие пространства",
+    "boards": "Доски",
+    "boardsInTeam": "Доски в этой команде",
+    "createWorkspace": "Создать пространство",
+    "createBoard": "Создать доску",
+    "createNew": "Создать",
+    "recentBoards": "Недавние доски",
+    "exploreTemplates": "Шаблоны",
+    "blankBoard": "Пустая доска",
+    "templatesFor": "Шаблоны",
+    "searchPlaceholder": "Поиск по названию или теме",
+    "filterAll": "Все доски",
+    "filterOwned": "Мои доски",
+    "sortLastOpened": "Последние изменения",
+    "sortName": "Название",
+    "sortCreated": "Дата создания",
+    "lastModified": "Последние изменения",
+    "owner": "Владелец",
+    "name": "Название",
+    "you": "Вы",
+    "inviteMembers": "Пригласить участников",
+    "notifications": "Уведомления",
+    "noBoards": "Пока нет досок",
+    "noBoardsHint": "Создайте первую доску",
+    "selectWorkspace": "Выберите или создайте рабочее пространство",
+    "renameBoard": "Переименовать",
+    "duplicateBoard": "Дублировать",
+    "deleteBoard": "Удалить",
+    "share": "Поделиться",
+    "copyBoardLink": "Копировать ссылку",
+    "openInNewTab": "Открыть в новой вкладке",
+    "starThisBoard": "Добавить в избранное",
+    "unstarThisBoard": "Убрать из избранного",
+    "changeThumbnail": "Изменить миниатюру",
+    "boardDetails": "Подробности доски",
+    "makeBoardPrivate": "Сделать приватной",
+    "downloadBoardBackup": "Скачать резервную копию",
+    "moveToTeam": "Переместить в команду",
+    "leave": "Покинуть",
+    "renameWorkspace": "Переименовать пространство",
+    "deleteWorkspace": "Удалить пространство",
+    "inviteByEmail": "Пригласить по email",
+    "workspaceSettings": "Настройки пространства"
+  }
+}
