@@ -10,7 +10,6 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.modules.elements.model import Element
-    from app.modules.users.model import User
     from app.modules.workspaces.model import Workspace
 
 

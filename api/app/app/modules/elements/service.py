@@ -1,9 +1,8 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.modules.boards.model import Board
 from app.modules.boards.repository import get_by_id as get_board
 from app.modules.elements.model import Element
 from app.modules.elements.repository import (

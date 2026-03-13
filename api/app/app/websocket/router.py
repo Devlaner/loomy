@@ -4,16 +4,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-logger = logging.getLogger(__name__)
-
 from app.api.deps import get_user_from_token
 from app.db.session import SessionLocal
 from app.modules.boards.repository import get_by_id as get_board
 from app.modules.workspaces.repository import is_member as workspace_is_member
-from app.websocket.manager import broadcast_to_board
-from app.websocket.manager import subscribe_board
-from app.websocket.manager import unsubscribe_board
+from app.websocket.manager import (
+    broadcast_to_board,
+    subscribe_board,
+    unsubscribe_board,
+)
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
