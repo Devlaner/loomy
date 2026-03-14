@@ -25,11 +25,16 @@ export function useBoardWebSocket(
 ) {
   const { currentUserId = null, onRemoteDocument } = options;
   const [connected, setConnected] = useState(false);
-  const [remoteCursors, setRemoteCursors] = useState<Record<string, RemoteCursor>>({});
+  const [remoteCursors, setRemoteCursors] = useState<
+    Record<string, RemoteCursor>
+  >({});
   const wsRef = useRef<WebSocket | null>(null);
   const lastSendRef = useRef<number>(0);
   const onRemoteDocumentRef = useRef(onRemoteDocument);
-  onRemoteDocumentRef.current = onRemoteDocument;
+
+  useEffect(() => {
+    onRemoteDocumentRef.current = onRemoteDocument;
+  }, [onRemoteDocument]);
 
   // Expire stale cursors
   useEffect(() => {
@@ -41,7 +46,9 @@ export function useBoardWebSocket(
         for (const [id, c] of Object.entries(prev)) {
           if (now - c.lastSeen < CURSOR_EXPIRE_MS) next[id] = c;
         }
-        return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+        return Object.keys(next).length === Object.keys(prev).length
+          ? prev
+          : next;
       });
     }, 1000);
     return () => clearInterval(interval);
@@ -49,11 +56,7 @@ export function useBoardWebSocket(
 
   // Connect and message handling
   useEffect(() => {
-    if (!boardId || !token) {
-      setConnected(false);
-      setRemoteCursors({});
-      return;
-    }
+    if (!boardId || !token) return;
 
     const url = getBoardWsUrl(boardId, token);
     const ws = new WebSocket(url);
@@ -76,7 +79,8 @@ export function useBoardWebSocket(
           const userId = data.user_id as string | undefined;
           const x = typeof data.x === "number" ? data.x : 0;
           const y = typeof data.y === "number" ? data.y : 0;
-          const username = typeof data.username === "string" ? data.username : "Anonymous";
+          const username =
+            typeof data.username === "string" ? data.username : "Anonymous";
           if (userId && userId !== currentUserId) {
             setRemoteCursors((prev) => ({
               ...prev,

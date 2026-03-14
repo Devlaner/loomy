@@ -12,7 +12,10 @@ interface RemoteCursorsOverlayProps {
   cursors: Record<string, RemoteCursor>;
 }
 
-export function RemoteCursorsOverlay({ editor, cursors }: RemoteCursorsOverlayProps) {
+export function RemoteCursorsOverlay({
+  editor,
+  cursors,
+}: RemoteCursorsOverlayProps) {
   const [, setTick] = useState(0);
 
   // Re-render when camera/zoom changes so cursor positions update
@@ -28,7 +31,10 @@ export function RemoteCursorsOverlay({ editor, cursors }: RemoteCursorsOverlayPr
   if (entries.length === 0) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+    <div
+      className="absolute inset-0 pointer-events-none overflow-hidden"
+      aria-hidden
+    >
       {entries.map(([userId, cursor]) => {
         const vp = editor.pageToViewport({ x: cursor.x, y: cursor.y });
         return (

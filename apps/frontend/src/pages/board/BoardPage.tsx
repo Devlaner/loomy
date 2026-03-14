@@ -53,20 +53,29 @@ export function BoardPage() {
   const onRemoteDocument = useCallback(
     (doc: unknown) => {
       if (doc && typeof doc === "object") {
-        loadSnapshot(store, { document: doc } as Parameters<typeof loadSnapshot>[1]);
+        loadSnapshot(store, { document: doc } as Parameters<
+          typeof loadSnapshot
+        >[1]);
       }
     },
     [store],
   );
 
-  const { remoteCursors, sendCursor } = useBoardWebSocket(boardId ?? null, token, {
-    currentUserId: user?.id ?? null,
-    onRemoteDocument,
-  });
+  const { remoteCursors, sendCursor } = useBoardWebSocket(
+    boardId ?? null,
+    token,
+    {
+      currentUserId: user?.id ?? null,
+      onRemoteDocument,
+    },
+  );
 
   const rafRef = useRef<number | null>(null);
   const sendCursorRef = useRef(sendCursor);
-  sendCursorRef.current = sendCursor;
+
+  useEffect(() => {
+    sendCursorRef.current = sendCursor;
+  }, [sendCursor]);
 
   useEffect(() => {
     if (!boardId || !token) return;
