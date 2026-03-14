@@ -53,9 +53,12 @@ async def board_websocket(
             data = await websocket.receive_text()
             msg = json.loads(data)
             event = msg.get("event")
-            payload = msg.get("data", {})
-            if event in (
-                "cursor.moved",
+            payload = dict(msg.get("data", {}))
+            if event == "cursor.moved":
+                payload["user_id"] = str(user.id)
+                payload["username"] = user.username or user.email or "Anonymous"
+                await broadcast_to_board(board_id, event, payload)
+            elif event in (
                 "element.created",
                 "element.updated",
                 "element.deleted",
