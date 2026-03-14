@@ -21,6 +21,21 @@ import { useAuthStore } from "@/stores/authStore";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+/** Base URL for WebSocket (ws or wss from http or https). */
+export function getWsBaseUrl(): string {
+  const url = API_BASE.trim();
+  if (url.startsWith("https://")) return url.replace("https://", "wss://");
+  if (url.startsWith("http://")) return url.replace("http://", "ws://");
+  return `ws://${url}`;
+}
+
+/** WebSocket URL for a board: /api/ws/boards/{boardId}?token=... */
+export function getBoardWsUrl(boardId: string, token: string): string {
+  const base = getWsBaseUrl().replace(/\/$/, "");
+  const params = new URLSearchParams({ token });
+  return `${base}/api/ws/boards/${boardId}?${params.toString()}`;
+}
+
 function getToken(): string | null {
   return useAuthStore.getState().token;
 }
