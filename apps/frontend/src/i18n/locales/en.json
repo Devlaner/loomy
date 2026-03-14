@@ -20,14 +20,26 @@
       "cta": "Get started free",
       "secondary": "See how it works"
     },
-    "features": {
-      "title": "Designed for collaboration",
-      "boards": "Infinite boards",
-      "boardsDesc": "Unlimited space for your thoughts",
-      "realtime": "Real-time sync",
-      "realtimeDesc": "See changes instantly",
-      "elements": "Rich elements",
-      "elementsDesc": "Shapes, sticky notes, connectors"
+    "howItWorks": {
+      "title": "How it works",
+      "step1": "Create a workspace and add a board. Keep work grouped by team or project.",
+      "step2": "Invite teammates by email or share the board link. They open it and see the same canvas.",
+      "step3": "Draw shapes, notes, and connectors. Everyone's edits sync in real time."
+    },
+    "capabilities": {
+      "title": "What you can do",
+      "organizeLabel": "Organize",
+      "organizeDesc": "Workspaces and multiple boards so you can separate teams or projects.",
+      "collaborateLabel": "Collaborate",
+      "collaborateDesc": "Invite by email or share a link. See who's on the board and where their cursor is.",
+      "createLabel": "Create",
+      "createDesc": "Draw shapes, sticky notes, and connectors on an infinite canvas. Changes save automatically.",
+      "openSourceLabel": "Open source",
+      "openSourceDesc": "Self-host Loomy or use it as a hosted service. No lock-in."
+    },
+    "cta": {
+      "title": "Ready to start?",
+      "button": "Create free account"
     },
     "footer": {
       "tagline": "Open-source collaborative whiteboard"
