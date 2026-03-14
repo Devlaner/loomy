@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TLEditorSnapshot } from "tldraw";
 import { apiFetch } from "@/lib/api";
 
-const SNAPSHOT_TYPE = "tldraw_snapshot";
+const SNAPSHOT_TYPE = "excalidraw_snapshot";
+
+/** Persisted Excalidraw scene (elements + appState) */
+export type ExcalidrawSnapshot = {
+  elements?: readonly unknown[] | null;
+  appState?: Readonly<Record<string, unknown>> | null;
+};
 
 export function useBoardContent(boardId: string | null) {
-  const [snapshot, setSnapshot] = useState<Partial<TLEditorSnapshot> | null>(
-    null,
-  );
+  const [snapshot, setSnapshot] = useState<ExcalidrawSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,8 +34,11 @@ export function useBoardContent(boardId: string | null) {
       const snapshotEl = data.items?.find(
         (e: { type: string }) => e.type === SNAPSHOT_TYPE,
       );
-      if (snapshotEl?.data?.document) {
-        setSnapshot(snapshotEl.data as Partial<TLEditorSnapshot>);
+      if (
+        snapshotEl?.data?.elements != null ||
+        snapshotEl?.data?.appState != null
+      ) {
+        setSnapshot(snapshotEl.data as ExcalidrawSnapshot);
       } else {
         setSnapshot(null);
       }
@@ -44,7 +50,7 @@ export function useBoardContent(boardId: string | null) {
   }, [boardId]);
 
   const saveContent = useCallback(
-    async (content: Partial<TLEditorSnapshot>) => {
+    async (content: ExcalidrawSnapshot) => {
       if (!boardId) return;
       try {
         const listRes = await apiFetch(
@@ -79,7 +85,7 @@ export function useBoardContent(boardId: string | null) {
   );
 
   const scheduleSave = useCallback(
-    (content: Partial<TLEditorSnapshot>) => {
+    (content: ExcalidrawSnapshot) => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         saveContent(content);
@@ -88,6 +94,13 @@ export function useBoardContent(boardId: string | null) {
     },
     [saveContent],
   );
+
+  const clearPendingSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     loadContent();
@@ -103,5 +116,6 @@ export function useBoardContent(boardId: string | null) {
     loadContent,
     saveContent,
     scheduleSave,
+    clearPendingSave,
   };
 }

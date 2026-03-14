@@ -1,0 +1,41 @@
+/**
+ * Excalidraw board overrides – sync with Loomy design tokens.
+ * Targets .excalidraw inside .excalidraw-board so the canvas and sidebar
+ * use our platform theme (--accent, --bg-*, --text-*, etc.).
+ */
+
+.excalidraw-board .excalidraw {
+  /* Primary/accent (selection, links, buttons) */
+  --color-primary: var(--accent);
+  --color-primary-light: var(--accent-soft);
+  --color-primary-darker: var(--accent-hover);
+  --color-primary-darkest: var(--accent-hover);
+  --color-primary-contrast-offset: var(--accent-hover);
+
+  /* Surfaces and text – align with platform */
+  --color-surface-low: var(--bg-secondary);
+  --color-surface-mid: var(--bg-tertiary);
+  --color-surface-high: var(--bg-elevated);
+  --color-on-surface: var(--text-primary);
+  --color-on-surface-muted: var(--text-muted);
+
+  /* Borders */
+  --color-border: var(--border);
+  --color-border-hover: var(--border-focus);
+}
+
+/* Dark theme variant – same tokens; they resolve from [data-theme="dark"] */
+.excalidraw-board .excalidraw.theme--dark {
+  --color-primary: var(--accent);
+  --color-primary-light: var(--accent-soft);
+  --color-primary-darker: var(--accent-hover);
+  --color-primary-darkest: var(--accent-hover);
+  --color-primary-contrast-offset: var(--accent-hover);
+  --color-surface-low: var(--bg-secondary);
+  --color-surface-mid: var(--bg-tertiary);
+  --color-surface-high: var(--bg-elevated);
+  --color-on-surface: var(--text-primary);
+  --color-on-surface-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-focus);
+}
