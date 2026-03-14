@@ -4,7 +4,7 @@
 
 ## Features
 
-- **Infinite canvas** — Draw shapes, sticky notes, and connectors with [tldraw](https://tldraw.dev)
+- **Infinite canvas** — Draw shapes, sticky notes, and connectors with [Excalidraw](https://excalidraw.com)
 - **Workspaces & boards** — Organize work by workspace; star and revisit recent boards
 - **Real-time collaboration** — Live updates via WebSockets and Redis pub/sub
 - **Auth** — Email/password and OAuth (GitHub, Google)
@@ -14,7 +14,7 @@
 
 | Layer      | Stack |
 |-----------|--------|
-| Frontend  | React 19, Vite 7, TypeScript, Tailwind CSS 4, tldraw, Zustand, react-router-dom |
+| Frontend  | React 19, Vite 7, TypeScript, Tailwind CSS 4, Excalidraw, Zustand, react-router-dom |
 | Backend   | FastAPI, Python 3.12+, SQLAlchemy, Alembic, Pydantic |
 | Data      | PostgreSQL 17, Redis 7 |
 | Auth      | JWT, bcrypt, OAuth 2 (GitHub, Google) |

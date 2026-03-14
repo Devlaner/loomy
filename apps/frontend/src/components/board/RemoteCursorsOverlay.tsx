@@ -1,34 +1,20 @@
-import { useEffect, useState } from "react";
+import { sceneCoordsToViewportCoords } from "@excalidraw/excalidraw";
+import type { ExcalidrawViewportState } from "@/pages/board/BoardPage";
 import type { RemoteCursor } from "@/hooks/useBoardWebSocket";
 
-/** Editor-like: pageToViewport for positioning; store.listen to react to camera changes. */
-interface EditorLike {
-  pageToViewport: (point: { x: number; y: number }) => { x: number; y: number };
-  store: { listen: (listener: (...args: unknown[]) => void) => () => void };
-}
-
 interface RemoteCursorsOverlayProps {
-  editor: EditorLike | null;
+  viewportState: ExcalidrawViewportState | null;
   cursors: Record<string, RemoteCursor>;
 }
 
 export function RemoteCursorsOverlay({
-  editor,
+  viewportState,
   cursors,
 }: RemoteCursorsOverlayProps) {
-  const [, setTick] = useState(0);
-
-  // Re-render when camera/zoom changes so cursor positions update
-  useEffect(() => {
-    if (!editor) return;
-    const unsub = editor.store.listen(() => setTick((t) => t + 1));
-    return unsub;
-  }, [editor]);
-
-  if (!editor) return null;
-
   const entries = Object.entries(cursors);
-  if (entries.length === 0) return null;
+  if (!viewportState || entries.length === 0) return null;
+
+  const { scrollX, scrollY, zoom, offsetLeft, offsetTop } = viewportState;
 
   return (
     <div
@@ -36,14 +22,23 @@ export function RemoteCursorsOverlay({
       aria-hidden
     >
       {entries.map(([userId, cursor]) => {
-        const vp = editor.pageToViewport({ x: cursor.x, y: cursor.y });
+        const vp = sceneCoordsToViewportCoords(
+          { sceneX: cursor.x, sceneY: cursor.y },
+          {
+            scrollX,
+            scrollY,
+            zoom,
+            offsetLeft,
+            offsetTop,
+          } as Parameters<typeof sceneCoordsToViewportCoords>[1],
+        );
         return (
           <div
             key={userId}
             className="absolute flex items-center gap-1.5 transition-transform duration-75 will-change-transform"
             style={{
-              left: vp.x,
-              top: vp.y,
+              left: vp.x + offsetLeft,
+              top: vp.y + offsetTop,
               transform: "translate(8px, 8px)",
             }}
           >

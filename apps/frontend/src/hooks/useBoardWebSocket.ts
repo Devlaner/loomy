@@ -14,8 +14,11 @@ export interface RemoteCursor {
 export interface UseBoardWebSocketOptions {
   /** Current user id so we don't show our own cursor in remote list */
   currentUserId?: string | null;
-  /** Called when a remote tldraw_snapshot document update is received */
-  onRemoteDocument?: (document: unknown) => void;
+  /** Called when a remote excalidraw_snapshot (elements + appState) is received */
+  onRemoteDocument?: (data: {
+    elements?: unknown[];
+    appState?: unknown;
+  }) => void;
 }
 
 export function useBoardWebSocket(
@@ -91,11 +94,13 @@ export function useBoardWebSocket(
 
         if (
           eventType === "element.updated" &&
-          (data as { type?: string }).type === "tldraw_snapshot" &&
-          (data as { document?: unknown }).document
+          (data as { type?: string }).type === "excalidraw_snapshot" &&
+          ((data as { elements?: unknown }).elements != null ||
+            (data as { appState?: unknown }).appState != null)
         ) {
-          const doc = (data as { document: unknown }).document;
-          onRemoteDocumentRef.current?.(doc);
+          onRemoteDocumentRef.current?.(
+            data as { elements?: unknown[]; appState?: unknown },
+          );
         }
       } catch {
         // ignore parse errors

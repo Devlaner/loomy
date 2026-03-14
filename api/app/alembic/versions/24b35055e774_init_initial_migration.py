@@ -1,8 +1,8 @@
 """[INIT] Initial migration
 
-Revision ID: 2bca60200873
+Revision ID: 24b35055e774
 Revises:
-Create Date: 2026-03-13 22:02:16.013906
+Create Date: 2026-03-14 18:56:46.209221
 
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "2bca60200873"
+revision: str = "24b35055e774"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -131,10 +131,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_workspace_members_user_id"),
-        "workspace_members",
-        ["user_id"],
-        unique=False,
+        op.f("ix_workspace_members_user_id"), "workspace_members", ["user_id"], unique=False
     )
     op.create_index(
         op.f("ix_workspace_members_workspace_id"),

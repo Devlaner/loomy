@@ -17,7 +17,7 @@ from app.modules.elements.schemas import ElementCreate, ElementUpdate
 from app.modules.users.model import User
 from app.modules.workspaces.repository import is_member as workspace_is_member
 
-VALID_TYPES = {"shape", "sticky_note", "text", "arrow", "connector", "tldraw_snapshot"}
+VALID_TYPES = {"shape", "sticky_note", "text", "arrow", "connector", "excalidraw_snapshot"}
 
 
 def get_element(db: Session, element_id: UUID, user: User) -> Element | None:
