@@ -31,24 +31,32 @@ OAUTH_STATE_PREFIX = "oauth_state:"
 OAUTH_STATE_TTL = 600  # 10 minutes
 
 
-def set_oauth_state(state: str) -> bool:
+def set_oauth_state(state: str, invite_token: str | None = None) -> bool:
     """Store OAuth state for CSRF validation."""
     try:
         r = get_redis()
-        r.setex(f"{OAUTH_STATE_PREFIX}{state}", OAUTH_STATE_TTL, "1")
+        payload = {"invite_token": invite_token}
+        r.setex(f"{OAUTH_STATE_PREFIX}{state}", OAUTH_STATE_TTL, json.dumps(payload))
         return True
     except Exception:
         return False
 
 
-def validate_oauth_state(state: str) -> bool:
-    """Validate and consume OAuth state."""
+def validate_oauth_state(state: str) -> Dict[str, Any] | None:
+    """Validate and consume OAuth state, returning stored payload."""
     try:
         r = get_redis()
         key = f"{OAUTH_STATE_PREFIX}{state}"
-        if r.get(key):
+        raw = r.get(key)
+        if raw:
             r.delete(key)
-            return True
-        return False
+            try:
+                data = json.loads(raw)
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                return {}
+            return {}
+        return None
     except Exception:
-        return False
+        return None

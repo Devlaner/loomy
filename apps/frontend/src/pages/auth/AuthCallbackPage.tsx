@@ -12,15 +12,30 @@ export function AuthCallbackPage() {
   const navigate = useNavigate();
   const setToken = useAuthStore((s) => s.setToken);
   const token = searchParams.get("token");
+  const inviteToken = searchParams.get("invite_token");
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   useEffect(() => {
-    if (token) {
-      setToken(token);
-      navigate("/dashboard", { replace: true });
-    } else {
+    if (!token) {
       navigate("/login", { replace: true });
+      return;
     }
-  }, [token, navigate, setToken]);
+
+    setToken(token);
+    const acceptMaybe = async () => {
+      if (inviteToken) {
+        await fetch(`${API_BASE}/api/workspaces/invitations/${inviteToken}/accept`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+      navigate("/dashboard", { replace: true });
+    };
+    void acceptMaybe();
+  }, [token, inviteToken, navigate, setToken, API_BASE]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

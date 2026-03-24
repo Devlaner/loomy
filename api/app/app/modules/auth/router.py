@@ -46,14 +46,14 @@ def login_endpoint(
 
 # --- GitHub OAuth ---
 @router.get("/github")
-def github_login() -> RedirectResponse:
+def github_login(invite_token: str | None = None) -> RedirectResponse:
     if not settings.github_client_id:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GitHub OAuth is not configured",
         )
     state = secrets.token_urlsafe(32)
-    set_oauth_state(state)
+    set_oauth_state(state, invite_token=invite_token)
     return RedirectResponse(url=get_github_authorize_url(state))
 
 
@@ -65,7 +65,10 @@ async def github_callback(
 ) -> RedirectResponse:
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
-    if not state or not validate_oauth_state(state):
+    if not state:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+    state_data = validate_oauth_state(state)
+    if state_data is None:
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
     info = await get_github_user_info(code)
     if not info:
@@ -76,19 +79,22 @@ async def github_callback(
     user, _ = get_or_create_oauth_user(db, info)
     token = create_access_token(subject=str(user.id))
     redirect_url = f"{settings.frontend_url.rstrip('/')}/auth/callback?token={token}"
+    invite_token = state_data.get("invite_token")
+    if isinstance(invite_token, str) and invite_token:
+        redirect_url = f"{redirect_url}&invite_token={invite_token}"
     return RedirectResponse(url=redirect_url)
 
 
 # --- Google OAuth ---
 @router.get("/google")
-def google_login() -> RedirectResponse:
+def google_login(invite_token: str | None = None) -> RedirectResponse:
     if not settings.google_client_id:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Google OAuth is not configured",
         )
     state = secrets.token_urlsafe(32)
-    set_oauth_state(state)
+    set_oauth_state(state, invite_token=invite_token)
     return RedirectResponse(url=get_google_authorize_url(state))
 
 
@@ -100,7 +106,10 @@ async def google_callback(
 ) -> RedirectResponse:
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
-    if not state or not validate_oauth_state(state):
+    if not state:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+    state_data = validate_oauth_state(state)
+    if state_data is None:
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
     info = await get_google_user_info(code)
     if not info:
@@ -111,4 +120,7 @@ async def google_callback(
     user, _ = get_or_create_oauth_user(db, info)
     token = create_access_token(subject=str(user.id))
     redirect_url = f"{settings.frontend_url.rstrip('/')}/auth/callback?token={token}"
+    invite_token = state_data.get("invite_token")
+    if isinstance(invite_token, str) and invite_token:
+        redirect_url = f"{redirect_url}&invite_token={invite_token}"
     return RedirectResponse(url=redirect_url)
