@@ -73,7 +73,8 @@ export function WorkspaceSettingsPage() {
   );
 
   const isOwner =
-    Boolean(user && selectedWorkspace) && user?.id === selectedWorkspace?.owner_id;
+    Boolean(user && selectedWorkspace) &&
+    user?.id === selectedWorkspace?.owner_id;
 
   const effectiveWorkspaceName =
     (selectedWorkspaceId && workspaceNameDrafts[selectedWorkspaceId]) ||
@@ -98,7 +99,9 @@ export function WorkspaceSettingsPage() {
       })
       .catch((err: unknown) => {
         setMembersError(
-          err instanceof Error ? err.message : "Failed to load workspace members",
+          err instanceof Error
+            ? err.message
+            : "Failed to load workspace members",
         );
       })
       .finally(() => {
@@ -121,7 +124,9 @@ export function WorkspaceSettingsPage() {
         setBoards(data.items ?? []);
       })
       .catch((err: unknown) => {
-        setBoardsError(err instanceof Error ? err.message : "Failed to load boards");
+        setBoardsError(
+          err instanceof Error ? err.message : "Failed to load boards",
+        );
       })
       .finally(() => {
         setBoardsLoading(false);
@@ -141,14 +146,18 @@ export function WorkspaceSettingsPage() {
         .then(async (res) => {
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
-            throw new Error(formatApiError(data.detail, "Failed to load pending invitations"));
+            throw new Error(
+              formatApiError(data.detail, "Failed to load pending invitations"),
+            );
           }
           return res.json() as Promise<WorkspaceInvitationListResponse>;
         })
         .then((data) => setInvitations(data.items ?? []))
         .catch((err: unknown) => {
           setInvitationsError(
-            err instanceof Error ? err.message : "Failed to load pending invitations",
+            err instanceof Error
+              ? err.message
+              : "Failed to load pending invitations",
           );
         })
         .finally(() => setInvitationsLoading(false));
@@ -211,7 +220,9 @@ export function WorkspaceSettingsPage() {
     let older = 0;
     for (const board of boards) {
       const updatedMs = new Date(board.updated_at).getTime();
-      const days = Math.floor((latestUpdatedMs - updatedMs) / (1000 * 60 * 60 * 24));
+      const days = Math.floor(
+        (latestUpdatedMs - updatedMs) / (1000 * 60 * 60 * 24),
+      );
       if (days <= 7) lastWeek += 1;
       else if (days <= 30) lastMonth += 1;
       else older += 1;
@@ -331,11 +342,14 @@ export function WorkspaceSettingsPage() {
                 );
                 if (!res.ok) {
                   const data = await res.json().catch(() => ({}));
-                  setInviteError(formatApiError(data.detail, "Failed to create invitation"));
+                  setInviteError(
+                    formatApiError(data.detail, "Failed to create invitation"),
+                  );
                   setSavingInvite(false);
                   return;
                 }
-                const createdInvitation = (await res.json()) as WorkspaceInvitation;
+                const createdInvitation =
+                  (await res.json()) as WorkspaceInvitation;
                 setInviteEmail("");
                 setInviteInfo(t("dashboard.inviteCreated"));
                 await fetchWorkspaces();
@@ -388,8 +402,12 @@ export function WorkspaceSettingsPage() {
           {inviteInfo && (
             <p className="text-sm text-[var(--text-secondary)]">{inviteInfo}</p>
           )}
-          {invitationsError && <p className="text-sm text-red-600">{invitationsError}</p>}
-          {membersError && <p className="text-sm text-red-600">{membersError}</p>}
+          {invitationsError && (
+            <p className="text-sm text-red-600">{invitationsError}</p>
+          )}
+          {membersError && (
+            <p className="text-sm text-red-600">{membersError}</p>
+          )}
 
           <div className="rounded-[var(--radius-lg)] border border-[var(--border)] overflow-hidden bg-[var(--bg-primary)]">
             <div className="px-4 py-3 border-b border-[var(--border)]">
@@ -398,7 +416,9 @@ export function WorkspaceSettingsPage() {
               </h3>
             </div>
             {invitationsLoading ? (
-              <div className="px-4 py-4 text-sm text-[var(--text-muted)]">Loading...</div>
+              <div className="px-4 py-4 text-sm text-[var(--text-muted)]">
+                Loading...
+              </div>
             ) : invitations.length === 0 ? (
               <div className="px-4 py-4 text-sm text-[var(--text-muted)]">
                 {t("dashboard.noPendingInvitations")}
@@ -424,10 +444,15 @@ export function WorkspaceSettingsPage() {
                       variant="outline"
                       onClick={async () => {
                         try {
-                          await navigator.clipboard.writeText(invitation.invite_url);
+                          await navigator.clipboard.writeText(
+                            invitation.invite_url,
+                          );
                           setCopiedInviteId(invitation.id);
                           setInviteInfo(t("dashboard.inviteLinkCopied"));
-                          window.setTimeout(() => setCopiedInviteId(null), 1500);
+                          window.setTimeout(
+                            () => setCopiedInviteId(null),
+                            1500,
+                          );
                         } catch {
                           setInviteError(t("dashboard.inviteLinkCopyFailed"));
                         }
@@ -451,7 +476,9 @@ export function WorkspaceSettingsPage() {
             </div>
 
             {membersLoading ? (
-              <div className="px-4 py-6 text-sm text-[var(--text-muted)]">Loading...</div>
+              <div className="px-4 py-6 text-sm text-[var(--text-muted)]">
+                Loading...
+              </div>
             ) : filteredMembers.length === 0 ? (
               <div className="px-4 py-6 text-sm text-[var(--text-muted)]">
                 {t("dashboard.noMembersFound")}
@@ -529,13 +556,17 @@ export function WorkspaceSettingsPage() {
                 {t("dashboard.boardsPerMember")}
               </p>
               <p className="text-2xl font-semibold text-[var(--text-primary)] mt-2">
-                {members.length > 0 ? (boards.length / members.length).toFixed(1) : "0.0"}
+                {members.length > 0
+                  ? (boards.length / members.length).toFixed(1)
+                  : "0.0"}
               </p>
             </div>
           </div>
 
           {(boardsLoading || membersLoading) && (
-            <p className="text-sm text-[var(--text-muted)]">{t("dashboard.loadingAnalytics")}</p>
+            <p className="text-sm text-[var(--text-muted)]">
+              {t("dashboard.loadingAnalytics")}
+            </p>
           )}
           {boardsError && <p className="text-sm text-red-600">{boardsError}</p>}
 
@@ -548,9 +579,23 @@ export function WorkspaceSettingsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={monthlyBoardActivity}>
                     <defs>
-                      <linearGradient id="boardsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4f46e5" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.05} />
+                      <linearGradient
+                        id="boardsGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#4f46e5"
+                          stopOpacity={0.35}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#4f46e5"
+                          stopOpacity={0.05}
+                        />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -586,7 +631,9 @@ export function WorkspaceSettingsPage() {
                       {boardAgeDistribution.map((entry, index) => (
                         <Cell
                           key={`${entry.name}-${index.toString()}`}
-                          fill={ANALYTICS_COLORS[index % ANALYTICS_COLORS.length]}
+                          fill={
+                            ANALYTICS_COLORS[index % ANALYTICS_COLORS.length]
+                          }
                         />
                       ))}
                     </Pie>
@@ -610,7 +657,9 @@ export function WorkspaceSettingsPage() {
                       />
                       {item.name}
                     </span>
-                    <span className="text-[var(--text-primary)]">{item.value}</span>
+                    <span className="text-[var(--text-primary)]">
+                      {item.value}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -690,12 +739,16 @@ export function WorkspaceSettingsPage() {
               />
               <Button
                 type="submit"
-                disabled={!isOwner || savingGeneral || !effectiveWorkspaceName.trim()}
+                disabled={
+                  !isOwner || savingGeneral || !effectiveWorkspaceName.trim()
+                }
               >
                 {t("common.save")}
               </Button>
               {generalError && (
-                <p className="text-sm text-red-600 dark:text-red-400">{generalError}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {generalError}
+                </p>
               )}
             </form>
           </div>
@@ -712,7 +765,9 @@ export function WorkspaceSettingsPage() {
               variant="ghost"
               disabled={!isOwner || deletingWorkspace}
               onClick={async () => {
-                const confirmed = window.confirm(t("dashboard.deleteWorkspaceConfirm"));
+                const confirmed = window.confirm(
+                  t("dashboard.deleteWorkspaceConfirm"),
+                );
                 if (!confirmed) return;
                 setDeletingWorkspace(true);
                 const ok = await deleteWorkspace(selectedWorkspaceId);

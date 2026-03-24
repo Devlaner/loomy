@@ -50,6 +50,8 @@ def validate_oauth_state(state: str) -> Dict[str, Any] | None:
         raw = r.get(key)
         if raw:
             r.delete(key)
+            if not isinstance(raw, (str, bytes, bytearray)):
+                return {}
             try:
                 data = json.loads(raw)
                 if isinstance(data, dict):

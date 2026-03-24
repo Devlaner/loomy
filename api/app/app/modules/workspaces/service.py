@@ -94,9 +94,7 @@ def create_workspace_invitation_for_user(
     )
 
 
-def get_workspace_invitation_by_token(
-    db: Session, token: str
-) -> WorkspaceInvitation | None:
+def get_workspace_invitation_by_token(db: Session, token: str) -> WorkspaceInvitation | None:
     return get_invitation_by_token(db, token)
 
 

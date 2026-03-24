@@ -24,13 +24,16 @@ export function AuthCallbackPage() {
     setToken(token);
     const acceptMaybe = async () => {
       if (inviteToken) {
-        await fetch(`${API_BASE}/api/workspaces/invitations/${inviteToken}/accept`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+        await fetch(
+          `${API_BASE}/api/workspaces/invitations/${inviteToken}/accept`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           },
-        });
+        );
       }
       navigate("/dashboard", { replace: true });
     };

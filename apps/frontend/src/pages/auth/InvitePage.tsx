@@ -69,21 +69,30 @@ export function InvitePage() {
             Workspace invitation
           </h1>
 
-          {loading && <p className="text-sm text-[var(--text-muted)]">Loading...</p>}
-          {!loading && !token && (
-            <p className="text-sm text-[var(--error)]">Invitation token is missing</p>
+          {loading && (
+            <p className="text-sm text-[var(--text-muted)]">Loading...</p>
           )}
-          {!loading && error && <p className="text-sm text-[var(--error)]">{error}</p>}
+          {!loading && !token && (
+            <p className="text-sm text-[var(--error)]">
+              Invitation token is missing
+            </p>
+          )}
+          {!loading && error && (
+            <p className="text-sm text-[var(--error)]">{error}</p>
+          )}
 
           {!loading && invite && (
             <div className="space-y-4">
               <p className="text-sm text-[var(--text-secondary)]">
-                You are invited to join <strong>{invite.workspace_name}</strong> as{" "}
-                <strong>{invite.role}</strong> for <strong>{invite.email}</strong>.
+                You are invited to join <strong>{invite.workspace_name}</strong>{" "}
+                as <strong>{invite.role}</strong> for{" "}
+                <strong>{invite.email}</strong>.
               </p>
 
               {success && (
-                <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
+                <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                  {success}
+                </p>
               )}
 
               {authToken ? (

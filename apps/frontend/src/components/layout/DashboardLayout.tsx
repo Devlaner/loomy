@@ -16,7 +16,10 @@ export interface DashboardOutletContext {
   selectedWorkspaceId: string | null;
   setSelectedWorkspaceId: (id: string | null) => void;
   fetchWorkspaces: () => Promise<void>;
-  updateWorkspace: (workspaceId: string, name: string) => Promise<{
+  updateWorkspace: (
+    workspaceId: string,
+    name: string,
+  ) => Promise<{
     id: string;
     name: string;
   } | null>;
@@ -179,7 +182,9 @@ export function DashboardLayout() {
         selectedWorkspaceId={selectedWorkspaceId}
         onSelectWorkspace={setSelectedWorkspaceId}
         onInviteClick={() => setShowInviteModal(true)}
-        onWorkspaceSettingsClick={() => navigate("/dashboard/workspace-settings")}
+        onWorkspaceSettingsClick={() =>
+          navigate("/dashboard/workspace-settings")
+        }
       >
         <Outlet
           context={{

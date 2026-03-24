@@ -49,7 +49,12 @@ export function LoginPage() {
         );
         if (!acceptRes.ok) {
           const acceptData = await acceptRes.json().catch(() => ({}));
-          setError(formatApiError(acceptData.detail, "Login succeeded, invite was not accepted"));
+          setError(
+            formatApiError(
+              acceptData.detail,
+              "Login succeeded, invite was not accepted",
+            ),
+          );
         }
       }
       navigate("/dashboard");

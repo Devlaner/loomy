@@ -6,6 +6,7 @@ from app.api.deps import get_current_user
 from app.config import settings
 from app.db.session import get_db
 from app.modules.users.model import User
+from app.modules.workspaces.model import WorkspaceInvitation
 from app.modules.workspaces.schemas import (
     WorkspaceInvitationAcceptResponse,
     WorkspaceInvitationCreate,
@@ -22,8 +23,10 @@ from app.modules.workspaces.service import (
 router = APIRouter(tags=["workspace-invitations"])
 
 
-def _to_response(token: str, invitation) -> WorkspaceInvitationResponse:
-    base_url = settings.frontend_url.rstrip("/") if settings.frontend_url else "http://localhost:5173"
+def _to_response(token: str, invitation: WorkspaceInvitation) -> WorkspaceInvitationResponse:
+    base_url = (
+        settings.frontend_url.rstrip("/") if settings.frontend_url else "http://localhost:5173"
+    )
     return WorkspaceInvitationResponse(
         id=invitation.id,
         workspace_id=invitation.workspace_id,
