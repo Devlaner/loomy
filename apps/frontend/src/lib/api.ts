@@ -114,3 +114,7 @@ export interface WorkspaceInvitation {
   expires_at?: string | null;
   accepted_at?: string | null;
 }
+
+export interface WorkspaceInvitationListResponse {
+  items: WorkspaceInvitation[];
+}

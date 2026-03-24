@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import {
   Area,
@@ -20,6 +20,7 @@ import {
   type Board,
   type BoardListResponse,
   type WorkspaceInvitation,
+  type WorkspaceInvitationListResponse,
   type WorkspaceMember,
 } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
@@ -51,8 +52,10 @@ export function WorkspaceSettingsPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteInfo, setInviteInfo] = useState<string | null>(null);
   const [savingInvite, setSavingInvite] = useState(false);
-  const [copiedInviteLink, setCopiedInviteLink] = useState(false);
-  const [latestInviteUrl, setLatestInviteUrl] = useState<string | null>(null);
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
+  const [invitationsError, setInvitationsError] = useState<string | null>(null);
 
   const [workspaceNameDrafts, setWorkspaceNameDrafts] = useState<
     Record<string, string>
@@ -125,14 +128,43 @@ export function WorkspaceSettingsPage() {
       });
   };
 
+  const loadInvitations = useCallback(
+    async (workspaceId: string) => {
+      if (!isOwner) {
+        setInvitations([]);
+        setInvitationsError(null);
+        return;
+      }
+      setInvitationsLoading(true);
+      setInvitationsError(null);
+      await apiFetch(`/api/workspaces/${workspaceId}/invitations`)
+        .then(async (res) => {
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(formatApiError(data.detail, "Failed to load pending invitations"));
+          }
+          return res.json() as Promise<WorkspaceInvitationListResponse>;
+        })
+        .then((data) => setInvitations(data.items ?? []))
+        .catch((err: unknown) => {
+          setInvitationsError(
+            err instanceof Error ? err.message : "Failed to load pending invitations",
+          );
+        })
+        .finally(() => setInvitationsLoading(false));
+    },
+    [isOwner],
+  );
+
   useEffect(() => {
     if (!selectedWorkspaceId) return;
     const timer = window.setTimeout(() => {
       void loadMembers(selectedWorkspaceId);
       void loadBoards(selectedWorkspaceId);
+      void loadInvitations(selectedWorkspaceId);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [selectedWorkspaceId]);
+  }, [selectedWorkspaceId, isOwner, loadInvitations]);
 
   const filteredMembers = useMemo(() => {
     const q = memberSearch.trim().toLowerCase();
@@ -212,8 +244,8 @@ export function WorkspaceSettingsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <div>
+    <div className="max-w-6xl mx-auto p-6 space-y-6">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-primary)] px-5 py-4">
         <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
           {t("dashboard.workspaceSettings")}
         </h1>
@@ -222,12 +254,12 @@ export function WorkspaceSettingsPage() {
         </p>
       </div>
 
-      <div className="border-b border-[var(--border)]">
-        <nav className="flex items-center gap-1">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-primary)] p-2">
+        <nav className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setActiveTab("members")}
-            className={`px-4 py-2 text-sm rounded-t-[var(--radius-md)] ${
+            className={`px-4 py-2 text-sm rounded-[var(--radius-md)] ${
               activeTab === "members"
                 ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -238,7 +270,7 @@ export function WorkspaceSettingsPage() {
           <button
             type="button"
             onClick={() => setActiveTab("analytics")}
-            className={`px-4 py-2 text-sm rounded-t-[var(--radius-md)] ${
+            className={`px-4 py-2 text-sm rounded-[var(--radius-md)] ${
               activeTab === "analytics"
                 ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -249,7 +281,7 @@ export function WorkspaceSettingsPage() {
           <button
             type="button"
             onClick={() => setActiveTab("general")}
-            className={`px-4 py-2 text-sm rounded-t-[var(--radius-md)] ${
+            className={`px-4 py-2 text-sm rounded-[var(--radius-md)] ${
               activeTab === "general"
                 ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -271,7 +303,7 @@ export function WorkspaceSettingsPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-primary)] p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
             <Input
               label={t("dashboard.searchMembers")}
               value={memberSearch}
@@ -280,7 +312,7 @@ export function WorkspaceSettingsPage() {
             />
 
             <form
-              className="flex items-end gap-2"
+              className="flex flex-wrap items-end gap-2"
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (!inviteEmail.trim()) return;
@@ -303,12 +335,13 @@ export function WorkspaceSettingsPage() {
                   setSavingInvite(false);
                   return;
                 }
-                const invitation = (await res.json()) as WorkspaceInvitation;
+                const createdInvitation = (await res.json()) as WorkspaceInvitation;
                 setInviteEmail("");
-                setLatestInviteUrl(invitation.invite_url);
                 setInviteInfo(t("dashboard.inviteCreated"));
                 await fetchWorkspaces();
                 await loadMembers(selectedWorkspaceId);
+                await loadInvitations(selectedWorkspaceId);
+                setCopiedInviteId(createdInvitation.id);
                 setSavingInvite(false);
               }}
             >
@@ -329,23 +362,24 @@ export function WorkspaceSettingsPage() {
                 variant="outline"
                 disabled={!isOwner}
                 onClick={async () => {
-                  if (!latestInviteUrl) {
-                    setInviteError(t("dashboard.createInviteFirst"));
+                  const latest = invitations[0];
+                  if (!latest) {
+                    setInviteError(t("dashboard.noPendingInvitations"));
                     return;
                   }
                   try {
-                    await navigator.clipboard.writeText(latestInviteUrl);
-                    setCopiedInviteLink(true);
+                    await navigator.clipboard.writeText(latest.invite_url);
+                    setCopiedInviteId(latest.id);
                     setInviteInfo(t("dashboard.inviteLinkCopied"));
-                    window.setTimeout(() => setCopiedInviteLink(false), 1500);
+                    window.setTimeout(() => setCopiedInviteId(null), 1500);
                   } catch {
                     setInviteError(t("dashboard.inviteLinkCopyFailed"));
                   }
                 }}
               >
-                {copiedInviteLink
+                {copiedInviteId === invitations[0]?.id
                   ? t("dashboard.inviteLinkCopiedShort")
-                  : t("dashboard.copyInviteLink")}
+                  : t("dashboard.copyLatestInviteLink")}
               </Button>
             </form>
           </div>
@@ -354,15 +388,60 @@ export function WorkspaceSettingsPage() {
           {inviteInfo && (
             <p className="text-sm text-[var(--text-secondary)]">{inviteInfo}</p>
           )}
-          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-primary)] p-3">
-            <p className="text-xs text-[var(--text-muted)] mb-1">
-              {t("dashboard.shareableInviteLink")}
-            </p>
-            <p className="text-sm break-all text-[var(--text-primary)]">
-              {latestInviteUrl ?? t("dashboard.noInviteGenerated")}
-            </p>
-          </div>
+          {invitationsError && <p className="text-sm text-red-600">{invitationsError}</p>}
           {membersError && <p className="text-sm text-red-600">{membersError}</p>}
+
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] overflow-hidden bg-[var(--bg-primary)]">
+            <div className="px-4 py-3 border-b border-[var(--border)]">
+              <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                {t("dashboard.pendingInvitations")}
+              </h3>
+            </div>
+            {invitationsLoading ? (
+              <div className="px-4 py-4 text-sm text-[var(--text-muted)]">Loading...</div>
+            ) : invitations.length === 0 ? (
+              <div className="px-4 py-4 text-sm text-[var(--text-muted)]">
+                {t("dashboard.noPendingInvitations")}
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {invitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm text-[var(--text-primary)] truncate">
+                        {invitation.email}
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {new Date(invitation.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(invitation.invite_url);
+                          setCopiedInviteId(invitation.id);
+                          setInviteInfo(t("dashboard.inviteLinkCopied"));
+                          window.setTimeout(() => setCopiedInviteId(null), 1500);
+                        } catch {
+                          setInviteError(t("dashboard.inviteLinkCopyFailed"));
+                        }
+                      }}
+                    >
+                      {copiedInviteId === invitation.id
+                        ? t("dashboard.inviteLinkCopiedShort")
+                        : t("dashboard.copyInviteLink")}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="rounded-[var(--radius-lg)] border border-[var(--border)] overflow-hidden">
             <div className="grid grid-cols-[2fr_1fr_auto] gap-3 px-4 py-3 text-xs uppercase tracking-wide text-[var(--text-muted)] bg-[var(--bg-tertiary)]">
@@ -461,7 +540,7 @@ export function WorkspaceSettingsPage() {
           {boardsError && <p className="text-sm text-red-600">{boardsError}</p>}
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <div className="xl:col-span-2 rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+            <div className="xl:col-span-2 rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)] shadow-[var(--shadow-sm)]">
               <h3 className="text-base font-medium text-[var(--text-primary)] mb-4">
                 {t("dashboard.boardCreationTrend")}
               </h3>
@@ -490,7 +569,7 @@ export function WorkspaceSettingsPage() {
               </div>
             </div>
 
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)] shadow-[var(--shadow-sm)]">
               <h3 className="text-base font-medium text-[var(--text-primary)] mb-4">
                 {t("dashboard.activityDistribution")}
               </h3>
@@ -538,7 +617,7 @@ export function WorkspaceSettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)] shadow-[var(--shadow-sm)]">
             <h3 className="text-base font-medium text-[var(--text-primary)] mb-3">
               {t("dashboard.recentMembers")}
             </h3>
@@ -568,7 +647,7 @@ export function WorkspaceSettingsPage() {
 
       {activeTab === "general" && (
         <section className="space-y-6">
-          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 space-y-4">
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 space-y-4 bg-[var(--bg-primary)] shadow-[var(--shadow-sm)]">
             <h2 className="text-lg font-medium text-[var(--text-primary)]">
               {t("dashboard.generalTab")}
             </h2>
@@ -621,7 +700,7 @@ export function WorkspaceSettingsPage() {
             </form>
           </div>
 
-          <div className="rounded-[var(--radius-lg)] border border-red-300 p-4 space-y-3">
+          <div className="rounded-[var(--radius-lg)] border border-red-300 p-4 space-y-3 bg-[var(--bg-primary)]">
             <h3 className="text-base font-medium text-red-700">
               {t("dashboard.dangerZone")}
             </h3>
