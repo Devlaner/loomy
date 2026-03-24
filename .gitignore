@@ -3,7 +3,7 @@
 .env.local
 .env.*.local
 !.env.example
-
+scripts/
 # IDE and editor
 .cursor/
 .vscode/
