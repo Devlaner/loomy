@@ -13,6 +13,7 @@ interface DashboardShellProps {
   selectedWorkspaceId?: string | null;
   onSelectWorkspace?: (id: string) => void;
   onInviteClick?: () => void;
+  onWorkspaceSettingsClick?: () => void;
 }
 
 export function DashboardShell({
@@ -23,6 +24,7 @@ export function DashboardShell({
   selectedWorkspaceId,
   onSelectWorkspace,
   onInviteClick,
+  onWorkspaceSettingsClick,
 }: DashboardShellProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -118,6 +120,7 @@ export function DashboardShell({
               <button
                 type="button"
                 className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                onClick={onWorkspaceSettingsClick}
               >
                 {t("dashboard.workspaceSettings")}
               </button>
