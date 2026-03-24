@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useI18n } from "@/context/I18nContext";
 import { PageTitle } from "@/components/PageTitle";
 import { Header } from "@/components/layout";
@@ -11,6 +11,7 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export function RegisterPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,7 +41,12 @@ export function RegisterPage() {
         setError(formatApiError(data.detail, "Registration failed"));
         return;
       }
-      navigate("/login");
+      const inviteToken = searchParams.get("invite_token");
+      if (inviteToken) {
+        navigate(`/login?invite_token=${encodeURIComponent(inviteToken)}`);
+      } else {
+        navigate("/login");
+      }
     } catch {
       setError("Network error");
     } finally {
@@ -49,7 +55,11 @@ export function RegisterPage() {
   }
 
   function handleOAuth(provider: "github" | "google") {
-    window.location.href = `${API_BASE}/api/auth/${provider}`;
+    const inviteToken = searchParams.get("invite_token");
+    const suffix = inviteToken
+      ? `?invite_token=${encodeURIComponent(inviteToken)}`
+      : "";
+    window.location.href = `${API_BASE}/api/auth/${provider}${suffix}`;
   }
 
   return (
@@ -146,7 +156,10 @@ export function RegisterPage() {
 
           <p className="mt-8 text-center text-[var(--text-secondary)] text-sm">
             {t("auth.register.hasAccount")}{" "}
-            <Link to="/login" className="text-[var(--accent)] hover:underline">
+            <Link
+              to={`/login${searchParams.get("invite_token") ? `?invite_token=${encodeURIComponent(searchParams.get("invite_token") ?? "")}` : ""}`}
+              className="text-[var(--accent)] hover:underline"
+            >
               {t("common.login")}
             </Link>
           </p>

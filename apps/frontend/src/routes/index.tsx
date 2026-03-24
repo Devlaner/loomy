@@ -19,6 +19,9 @@ const RegisterPage = lazy(() =>
 const AuthCallbackPage = lazy(() =>
   import("@/pages/auth").then((m) => ({ default: m.AuthCallbackPage })),
 );
+const InvitePage = lazy(() =>
+  import("@/pages/auth").then((m) => ({ default: m.InvitePage })),
+);
 const DashboardPage = lazy(() =>
   import("@/pages/dashboard").then((m) => ({ default: m.DashboardPage })),
 );
@@ -27,6 +30,11 @@ const RecentPage = lazy(() =>
 );
 const StarredPage = lazy(() =>
   import("@/pages/dashboard").then((m) => ({ default: m.StarredPage })),
+);
+const WorkspaceSettingsPage = lazy(() =>
+  import("@/pages/dashboard").then((m) => ({
+    default: m.WorkspaceSettingsPage,
+  })),
 );
 const BoardPage = lazy(() =>
   import("@/pages/board").then((m) => ({ default: m.BoardPage })),
@@ -59,6 +67,14 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: "/invite/:token",
+    element: (
+      <Suspense fallback={null}>
+        <InvitePage />
+      </Suspense>
+    ),
+  },
+  {
     path: "/dashboard",
     element: (
       <ProtectedRoute>
@@ -87,6 +103,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={null}>
             <StarredPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: "workspace-settings",
+        element: (
+          <Suspense fallback={null}>
+            <WorkspaceSettingsPage />
           </Suspense>
         ),
       },

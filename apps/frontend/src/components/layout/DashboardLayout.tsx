@@ -11,6 +11,21 @@ import { useDashboardStore } from "@/stores/dashboardStore";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+export interface DashboardOutletContext {
+  workspaces: { id: string; name: string; owner_id: string }[];
+  selectedWorkspaceId: string | null;
+  setSelectedWorkspaceId: (id: string | null) => void;
+  fetchWorkspaces: () => Promise<void>;
+  updateWorkspace: (
+    workspaceId: string,
+    name: string,
+  ) => Promise<{
+    id: string;
+    name: string;
+  } | null>;
+  deleteWorkspace: (workspaceId: string) => Promise<boolean>;
+}
+
 export function DashboardLayout() {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -31,6 +46,8 @@ export function DashboardLayout() {
     loading: workspacesLoading,
     createWorkspace,
     fetchWorkspaces,
+    updateWorkspace,
+    deleteWorkspace,
   } = useWorkspaces();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -165,8 +182,24 @@ export function DashboardLayout() {
         selectedWorkspaceId={selectedWorkspaceId}
         onSelectWorkspace={setSelectedWorkspaceId}
         onInviteClick={() => setShowInviteModal(true)}
+        onWorkspaceSettingsClick={() =>
+          navigate("/dashboard/workspace-settings")
+        }
       >
-        <Outlet />
+        <Outlet
+          context={{
+            workspaces: workspaces.map((w) => ({
+              id: w.id,
+              name: w.name,
+              owner_id: w.owner_id,
+            })),
+            selectedWorkspaceId,
+            setSelectedWorkspaceId,
+            fetchWorkspaces,
+            updateWorkspace,
+            deleteWorkspace,
+          }}
+        />
       </DashboardShell>
 
       {showInviteModal && selectedWorkspaceId && (

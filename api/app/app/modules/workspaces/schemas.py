@@ -29,3 +29,30 @@ class WorkspaceListResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+class WorkspaceInvitationCreate(BaseModel):
+    email: str
+    role: str = "member"
+
+
+class WorkspaceInvitationResponse(BaseModel):
+    id: UUID
+    workspace_id: UUID
+    workspace_name: str
+    email: str
+    role: str
+    token: str
+    invite_url: str
+    created_at: datetime
+    expires_at: datetime | None = None
+    accepted_at: datetime | None = None
+
+
+class WorkspaceInvitationAcceptResponse(BaseModel):
+    workspace_id: UUID
+    workspace_name: str
+
+
+class WorkspaceInvitationListResponse(BaseModel):
+    items: list[WorkspaceInvitationResponse]

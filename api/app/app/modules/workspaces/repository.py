@@ -1,12 +1,13 @@
 import re
 import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Tuple, List
 from uuid import UUID
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.modules.workspaces.model import Workspace, WorkspaceMember
+from app.modules.workspaces.model import Workspace, WorkspaceInvitation, WorkspaceMember
 
 
 def _slugify(text: str) -> str:
@@ -145,3 +146,59 @@ def remove_member(db: Session, workspace_id: UUID, user_id: UUID) -> bool:
     db.delete(member)
     db.commit()
     return True
+
+
+def create_invitation(
+    db: Session,
+    *,
+    workspace_id: UUID,
+    email: str,
+    invited_by: UUID,
+    role: str = "member",
+    expires_in_days: int = 7,
+) -> WorkspaceInvitation:
+    token = secrets.token_urlsafe(32)
+    invitation = WorkspaceInvitation(
+        workspace_id=workspace_id,
+        email=email.strip().lower(),
+        role=role,
+        token=token,
+        invited_by=invited_by,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_in_days),
+    )
+    db.add(invitation)
+    db.commit()
+    db.refresh(invitation)
+    return invitation
+
+
+def get_invitation_by_token(db: Session, token: str) -> WorkspaceInvitation | None:
+    return (
+        db.query(WorkspaceInvitation)
+        .options(joinedload(WorkspaceInvitation.workspace))
+        .filter(WorkspaceInvitation.token == token)
+        .first()
+    )
+
+
+def mark_invitation_accepted(db: Session, invitation: WorkspaceInvitation) -> WorkspaceInvitation:
+    invitation.accepted_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(invitation)
+    return invitation
+
+
+def list_workspace_invitations(
+    db: Session,
+    *,
+    workspace_id: UUID,
+    pending_only: bool = True,
+) -> List[WorkspaceInvitation]:
+    query = (
+        db.query(WorkspaceInvitation)
+        .options(joinedload(WorkspaceInvitation.workspace))
+        .filter(WorkspaceInvitation.workspace_id == workspace_id)
+    )
+    if pending_only:
+        query = query.filter(WorkspaceInvitation.accepted_at.is_(None))
+    return query.order_by(WorkspaceInvitation.created_at.desc()).all()
