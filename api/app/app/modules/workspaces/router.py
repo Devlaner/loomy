@@ -21,9 +21,11 @@ from app.modules.workspaces.service import (
     update_workspace_for_user,
 )
 from app.modules.workspaces.members import router as members_router
+from app.modules.workspaces.invitations import router as invitations_router
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 router.include_router(members_router, prefix="/{workspace_id}")
+router.include_router(invitations_router)
 
 
 def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:

@@ -1,16 +1,21 @@
 from typing import Tuple
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.modules.users.model import User
-from app.modules.workspaces.model import Workspace
+from app.modules.workspaces.model import Workspace, WorkspaceInvitation
 from app.modules.workspaces.repository import (
+    create_invitation,
     create as create_workspace,
     delete as delete_workspace,
+    add_member,
+    get_invitation_by_token,
     get_by_id,
     get_user_workspaces,
     is_member,
+    mark_invitation_accepted,
     make_unique_slug,
     update as update_workspace,
 )
@@ -66,3 +71,47 @@ def delete_workspace_for_user(db: Session, workspace_id: UUID, user: User) -> bo
         return False
     delete_workspace(db, workspace)
     return True
+
+
+def create_workspace_invitation_for_user(
+    db: Session,
+    workspace_id: UUID,
+    user: User,
+    *,
+    email: str,
+    role: str = "member",
+) -> WorkspaceInvitation | None:
+    workspace = get_workspace(db, workspace_id, user)
+    if not workspace or workspace.owner_id != user.id:
+        return None
+    return create_invitation(
+        db,
+        workspace_id=workspace_id,
+        email=email,
+        role=role,
+        invited_by=user.id,
+    )
+
+
+def get_workspace_invitation_by_token(
+    db: Session, token: str
+) -> WorkspaceInvitation | None:
+    return get_invitation_by_token(db, token)
+
+
+def accept_workspace_invitation_for_user(
+    db: Session, token: str, user: User
+) -> WorkspaceInvitation | None:
+    invitation = get_invitation_by_token(db, token)
+    if not invitation:
+        return None
+    if invitation.accepted_at is not None:
+        return None
+    if invitation.expires_at is not None and invitation.expires_at <= datetime.now(timezone.utc):
+        return None
+    if invitation.email.strip().lower() != user.email.strip().lower():
+        return None
+
+    if not is_member(db, invitation.workspace_id, user.id):
+        add_member(db, invitation.workspace_id, user.id, role=invitation.role)
+    return mark_invitation_accepted(db, invitation)
