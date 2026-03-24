@@ -10,7 +10,11 @@ from app.db.base import Base
 from app.modules.boards.model import Board, BoardStar, BoardView  # noqa: F401 - metadata
 from app.modules.elements.model import Element  # noqa: F401 - metadata
 from app.modules.users.model import OAuthAccount, User  # noqa: F401 - metadata
-from app.modules.workspaces.model import Workspace, WorkspaceMember  # noqa: F401 - metadata
+from app.modules.workspaces.model import (  # noqa: F401 - metadata
+    Workspace,
+    WorkspaceInvitation,
+    WorkspaceMember,
+)
 
 config = context.config
 
