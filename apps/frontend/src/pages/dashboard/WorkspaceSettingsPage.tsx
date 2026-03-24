@@ -19,6 +19,7 @@ import {
   formatApiError,
   type Board,
   type BoardListResponse,
+  type WorkspaceInvitation,
   type WorkspaceMember,
 } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
@@ -51,6 +52,7 @@ export function WorkspaceSettingsPage() {
   const [inviteInfo, setInviteInfo] = useState<string | null>(null);
   const [savingInvite, setSavingInvite] = useState(false);
   const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+  const [latestInviteUrl, setLatestInviteUrl] = useState<string | null>(null);
 
   const [workspaceNameDrafts, setWorkspaceNameDrafts] = useState<
     Record<string, string>
@@ -141,15 +143,6 @@ export function WorkspaceSettingsPage() {
       return username.includes(q) || email.includes(q);
     });
   }, [members, memberSearch]);
-
-  const inviteLink = useMemo(() => {
-    const base = window.location.origin;
-    const params = new URLSearchParams({
-      workspace: selectedWorkspaceId ?? "",
-      workspaceName: selectedWorkspace?.name ?? "",
-    });
-    return `${base}/register?${params.toString()}`;
-  }, [selectedWorkspace?.name, selectedWorkspaceId]);
 
   const monthlyBoardActivity = useMemo(() => {
     const byMonth = new Map<string, number>();
@@ -295,7 +288,7 @@ export function WorkspaceSettingsPage() {
                 setInviteInfo(null);
                 setSavingInvite(true);
                 const res = await apiFetch(
-                  `/api/workspaces/${selectedWorkspaceId}/members`,
+                  `/api/workspaces/${selectedWorkspaceId}/invitations`,
                   {
                     method: "POST",
                     body: JSON.stringify({
@@ -306,16 +299,14 @@ export function WorkspaceSettingsPage() {
                 );
                 if (!res.ok) {
                   const data = await res.json().catch(() => ({}));
-                  const message = formatApiError(data.detail, "Failed to invite member");
-                  setInviteError(message);
-                  if (message.toLowerCase().includes("no user found")) {
-                    setInviteInfo(t("dashboard.inviteFallbackHint"));
-                  }
+                  setInviteError(formatApiError(data.detail, "Failed to create invitation"));
                   setSavingInvite(false);
                   return;
                 }
+                const invitation = (await res.json()) as WorkspaceInvitation;
                 setInviteEmail("");
-                setInviteInfo(t("dashboard.inviteSuccess"));
+                setLatestInviteUrl(invitation.invite_url);
+                setInviteInfo(t("dashboard.inviteCreated"));
                 await fetchWorkspaces();
                 await loadMembers(selectedWorkspaceId);
                 setSavingInvite(false);
@@ -338,8 +329,12 @@ export function WorkspaceSettingsPage() {
                 variant="outline"
                 disabled={!isOwner}
                 onClick={async () => {
+                  if (!latestInviteUrl) {
+                    setInviteError(t("dashboard.createInviteFirst"));
+                    return;
+                  }
                   try {
-                    await navigator.clipboard.writeText(inviteLink);
+                    await navigator.clipboard.writeText(latestInviteUrl);
                     setCopiedInviteLink(true);
                     setInviteInfo(t("dashboard.inviteLinkCopied"));
                     window.setTimeout(() => setCopiedInviteLink(false), 1500);
@@ -363,7 +358,9 @@ export function WorkspaceSettingsPage() {
             <p className="text-xs text-[var(--text-muted)] mb-1">
               {t("dashboard.shareableInviteLink")}
             </p>
-            <p className="text-sm break-all text-[var(--text-primary)]">{inviteLink}</p>
+            <p className="text-sm break-all text-[var(--text-primary)]">
+              {latestInviteUrl ?? t("dashboard.noInviteGenerated")}
+            </p>
           </div>
           {membersError && <p className="text-sm text-red-600">{membersError}</p>}
 

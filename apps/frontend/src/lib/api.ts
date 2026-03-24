@@ -101,3 +101,16 @@ export interface WorkspaceMember {
   avatar_url: string | null;
   role: string;
 }
+
+export interface WorkspaceInvitation {
+  id: string;
+  workspace_id: string;
+  workspace_name: string;
+  email: string;
+  role: string;
+  token: string;
+  invite_url: string;
+  created_at: string;
+  expires_at?: string | null;
+  accepted_at?: string | null;
+}

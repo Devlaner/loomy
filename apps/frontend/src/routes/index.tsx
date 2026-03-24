@@ -19,6 +19,9 @@ const RegisterPage = lazy(() =>
 const AuthCallbackPage = lazy(() =>
   import("@/pages/auth").then((m) => ({ default: m.AuthCallbackPage })),
 );
+const InvitePage = lazy(() =>
+  import("@/pages/auth").then((m) => ({ default: m.InvitePage })),
+);
 const DashboardPage = lazy(() =>
   import("@/pages/dashboard").then((m) => ({ default: m.DashboardPage })),
 );
@@ -60,6 +63,14 @@ const router = createBrowserRouter([
     element: (
       <Suspense fallback={null}>
         <AuthCallbackPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/invite/:token",
+    element: (
+      <Suspense fallback={null}>
+        <InvitePage />
       </Suspense>
     ),
   },
