@@ -1,7 +1,7 @@
 {
   "name": "loomy",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +20,7 @@
     "react-dom": "^19.2.0",
     "react-helmet-async": "^3.0.0",
     "react-router-dom": "^7.13.1",
+    "recharts": "^3.8.0",
     "tailwindcss": "^4.2.1",
     "zustand": "^5.0.11"
   },
