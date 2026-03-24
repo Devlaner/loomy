@@ -9,12 +9,14 @@ from app.modules.users.model import User
 from app.modules.workspaces.schemas import (
     WorkspaceInvitationAcceptResponse,
     WorkspaceInvitationCreate,
+    WorkspaceInvitationListResponse,
     WorkspaceInvitationResponse,
 )
 from app.modules.workspaces.service import (
     accept_workspace_invitation_for_user,
     create_workspace_invitation_for_user,
     get_workspace_invitation_by_token,
+    list_workspace_invitations_for_user,
 )
 
 router = APIRouter(tags=["workspace-invitations"])
@@ -63,6 +65,26 @@ def create_workspace_invitation_endpoint(
     if loaded is None:
         raise HTTPException(status_code=404, detail="Invitation not found")
     return _to_response(invitation.token, loaded)
+
+
+@router.get(
+    "/{workspace_id}/invitations",
+    response_model=WorkspaceInvitationListResponse,
+)
+def list_workspace_invitations_endpoint(
+    workspace_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> WorkspaceInvitationListResponse:
+    invitations = list_workspace_invitations_for_user(db, workspace_id, current_user)
+    if invitations is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the workspace owner can view pending invitations",
+        )
+    return WorkspaceInvitationListResponse(
+        items=[_to_response(invitation.token, invitation) for invitation in invitations]
+    )
 
 
 @router.get("/invitations/{token}", response_model=WorkspaceInvitationResponse)

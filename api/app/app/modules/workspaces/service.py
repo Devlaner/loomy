@@ -12,6 +12,7 @@ from app.modules.workspaces.repository import (
     delete as delete_workspace,
     add_member,
     get_invitation_by_token,
+    list_workspace_invitations,
     get_by_id,
     get_user_workspaces,
     is_member,
@@ -97,6 +98,19 @@ def get_workspace_invitation_by_token(
     db: Session, token: str
 ) -> WorkspaceInvitation | None:
     return get_invitation_by_token(db, token)
+
+
+def list_workspace_invitations_for_user(
+    db: Session,
+    workspace_id: UUID,
+    user: User,
+) -> list[WorkspaceInvitation] | None:
+    workspace = get_workspace(db, workspace_id, user)
+    if workspace is None:
+        return None
+    if workspace.owner_id != user.id:
+        return None
+    return list_workspace_invitations(db, workspace_id=workspace_id, pending_only=True)
 
 
 def accept_workspace_invitation_for_user(

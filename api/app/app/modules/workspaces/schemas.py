@@ -52,3 +52,7 @@ class WorkspaceInvitationResponse(BaseModel):
 class WorkspaceInvitationAcceptResponse(BaseModel):
     workspace_id: UUID
     workspace_name: str
+
+
+class WorkspaceInvitationListResponse(BaseModel):
+    items: list[WorkspaceInvitationResponse]

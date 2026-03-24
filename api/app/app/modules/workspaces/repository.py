@@ -186,3 +186,19 @@ def mark_invitation_accepted(db: Session, invitation: WorkspaceInvitation) -> Wo
     db.commit()
     db.refresh(invitation)
     return invitation
+
+
+def list_workspace_invitations(
+    db: Session,
+    *,
+    workspace_id: UUID,
+    pending_only: bool = True,
+) -> List[WorkspaceInvitation]:
+    query = (
+        db.query(WorkspaceInvitation)
+        .options(joinedload(WorkspaceInvitation.workspace))
+        .filter(WorkspaceInvitation.workspace_id == workspace_id)
+    )
+    if pending_only:
+        query = query.filter(WorkspaceInvitation.accepted_at.is_(None))
+    return query.order_by(WorkspaceInvitation.created_at.desc()).all()
