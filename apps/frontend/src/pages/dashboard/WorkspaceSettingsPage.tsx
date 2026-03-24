@@ -1,12 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useI18n } from "@/context/I18nContext";
 import { Button, Input } from "@/components/ui";
-import { apiFetch, formatApiError, type WorkspaceMember } from "@/lib/api";
+import {
+  apiFetch,
+  formatApiError,
+  type Board,
+  type BoardListResponse,
+  type WorkspaceMember,
+} from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import type { DashboardOutletContext } from "@/components/layout/DashboardLayout";
 
-type SettingsTab = "general" | "members";
+type SettingsTab = "general" | "members" | "analytics";
+
+const ANALYTICS_COLORS = ["#4f46e5", "#0891b2", "#059669", "#d97706"];
 
 export function WorkspaceSettingsPage() {
   const { t } = useI18n();
@@ -28,7 +48,9 @@ export function WorkspaceSettingsPage() {
   const [memberSearch, setMemberSearch] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteInfo, setInviteInfo] = useState<string | null>(null);
   const [savingInvite, setSavingInvite] = useState(false);
+  const [copiedInviteLink, setCopiedInviteLink] = useState(false);
 
   const [workspaceNameDrafts, setWorkspaceNameDrafts] = useState<
     Record<string, string>
@@ -36,6 +58,9 @@ export function WorkspaceSettingsPage() {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [deletingWorkspace, setDeletingWorkspace] = useState(false);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [boardsLoading, setBoardsLoading] = useState(false);
+  const [boardsError, setBoardsError] = useState<string | null>(null);
 
   const selectedWorkspace = useMemo(
     () => workspaces.find((ws) => ws.id === selectedWorkspaceId) ?? null,
@@ -76,10 +101,33 @@ export function WorkspaceSettingsPage() {
       });
   };
 
+  const loadBoards = async (workspaceId: string) => {
+    setBoardsLoading(true);
+    setBoardsError(null);
+    await apiFetch(`/api/boards?workspace_id=${workspaceId}&page=1&limit=100`)
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(formatApiError(data.detail, "Failed to load boards"));
+        }
+        return res.json() as Promise<BoardListResponse>;
+      })
+      .then((data) => {
+        setBoards(data.items ?? []);
+      })
+      .catch((err: unknown) => {
+        setBoardsError(err instanceof Error ? err.message : "Failed to load boards");
+      })
+      .finally(() => {
+        setBoardsLoading(false);
+      });
+  };
+
   useEffect(() => {
     if (!selectedWorkspaceId) return;
     const timer = window.setTimeout(() => {
       void loadMembers(selectedWorkspaceId);
+      void loadBoards(selectedWorkspaceId);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [selectedWorkspaceId]);
@@ -93,6 +141,66 @@ export function WorkspaceSettingsPage() {
       return username.includes(q) || email.includes(q);
     });
   }, [members, memberSearch]);
+
+  const inviteLink = useMemo(() => {
+    const base = window.location.origin;
+    const params = new URLSearchParams({
+      workspace: selectedWorkspaceId ?? "",
+      workspaceName: selectedWorkspace?.name ?? "",
+    });
+    return `${base}/register?${params.toString()}`;
+  }, [selectedWorkspace?.name, selectedWorkspaceId]);
+
+  const monthlyBoardActivity = useMemo(() => {
+    const byMonth = new Map<string, number>();
+    const now = new Date();
+    for (let i = 5; i >= 0; i -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      byMonth.set(key, 0);
+    }
+    for (const board of boards) {
+      const date = new Date(board.created_at);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      if (byMonth.has(key)) {
+        byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
+      }
+    }
+    return Array.from(byMonth.entries()).map(([key, created]) => {
+      const [year, month] = key.split("-");
+      return {
+        key,
+        month: `${month}/${year.slice(2)}`,
+        created,
+      };
+    });
+  }, [boards]);
+
+  const boardAgeDistribution = useMemo(() => {
+    const latestUpdatedMs = boards.reduce((acc, board) => {
+      const updatedMs = new Date(board.updated_at).getTime();
+      return Number.isNaN(updatedMs) ? acc : Math.max(acc, updatedMs);
+    }, 0);
+    let lastWeek = 0;
+    let lastMonth = 0;
+    let older = 0;
+    for (const board of boards) {
+      const updatedMs = new Date(board.updated_at).getTime();
+      const days = Math.floor((latestUpdatedMs - updatedMs) / (1000 * 60 * 60 * 24));
+      if (days <= 7) lastWeek += 1;
+      else if (days <= 30) lastMonth += 1;
+      else older += 1;
+    }
+    return [
+      { name: t("dashboard.activityLast7Days"), value: lastWeek },
+      { name: t("dashboard.activityLast30Days"), value: lastMonth },
+      { name: t("dashboard.activityOlder"), value: older },
+    ];
+  }, [boards, t]);
+
+  const recentMembers = useMemo(() => {
+    return [...members].slice(0, 5);
+  }, [members]);
 
   if (!selectedWorkspaceId || !selectedWorkspace) {
     return (
@@ -136,6 +244,17 @@ export function WorkspaceSettingsPage() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab("analytics")}
+            className={`px-4 py-2 text-sm rounded-t-[var(--radius-md)] ${
+              activeTab === "analytics"
+                ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            {t("dashboard.analyticsTab")}
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab("general")}
             className={`px-4 py-2 text-sm rounded-t-[var(--radius-md)] ${
               activeTab === "general"
@@ -173,6 +292,7 @@ export function WorkspaceSettingsPage() {
                 e.preventDefault();
                 if (!inviteEmail.trim()) return;
                 setInviteError(null);
+                setInviteInfo(null);
                 setSavingInvite(true);
                 const res = await apiFetch(
                   `/api/workspaces/${selectedWorkspaceId}/members`,
@@ -186,13 +306,16 @@ export function WorkspaceSettingsPage() {
                 );
                 if (!res.ok) {
                   const data = await res.json().catch(() => ({}));
-                  setInviteError(
-                    formatApiError(data.detail, "Failed to invite member"),
-                  );
+                  const message = formatApiError(data.detail, "Failed to invite member");
+                  setInviteError(message);
+                  if (message.toLowerCase().includes("no user found")) {
+                    setInviteInfo(t("dashboard.inviteFallbackHint"));
+                  }
                   setSavingInvite(false);
                   return;
                 }
                 setInviteEmail("");
+                setInviteInfo(t("dashboard.inviteSuccess"));
                 await fetchWorkspaces();
                 await loadMembers(selectedWorkspaceId);
                 setSavingInvite(false);
@@ -210,10 +333,38 @@ export function WorkspaceSettingsPage() {
               <Button type="submit" disabled={savingInvite || !isOwner}>
                 {t("dashboard.inviteMembers")}
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!isOwner}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(inviteLink);
+                    setCopiedInviteLink(true);
+                    setInviteInfo(t("dashboard.inviteLinkCopied"));
+                    window.setTimeout(() => setCopiedInviteLink(false), 1500);
+                  } catch {
+                    setInviteError(t("dashboard.inviteLinkCopyFailed"));
+                  }
+                }}
+              >
+                {copiedInviteLink
+                  ? t("dashboard.inviteLinkCopiedShort")
+                  : t("dashboard.copyInviteLink")}
+              </Button>
             </form>
           </div>
 
           {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
+          {inviteInfo && (
+            <p className="text-sm text-[var(--text-secondary)]">{inviteInfo}</p>
+          )}
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-primary)] p-3">
+            <p className="text-xs text-[var(--text-muted)] mb-1">
+              {t("dashboard.shareableInviteLink")}
+            </p>
+            <p className="text-sm break-all text-[var(--text-primary)]">{inviteLink}</p>
+          </div>
           {membersError && <p className="text-sm text-red-600">{membersError}</p>}
 
           <div className="rounded-[var(--radius-lg)] border border-[var(--border)] overflow-hidden">
@@ -274,6 +425,146 @@ export function WorkspaceSettingsPage() {
                 </div>
               ))
             )}
+          </div>
+        </section>
+      )}
+
+      {activeTab === "analytics" && (
+        <section className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
+                {t("dashboard.totalBoards")}
+              </p>
+              <p className="text-2xl font-semibold text-[var(--text-primary)] mt-2">
+                {boards.length}
+              </p>
+            </div>
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
+                {t("dashboard.totalMembers")}
+              </p>
+              <p className="text-2xl font-semibold text-[var(--text-primary)] mt-2">
+                {members.length}
+              </p>
+            </div>
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
+                {t("dashboard.boardsPerMember")}
+              </p>
+              <p className="text-2xl font-semibold text-[var(--text-primary)] mt-2">
+                {members.length > 0 ? (boards.length / members.length).toFixed(1) : "0.0"}
+              </p>
+            </div>
+          </div>
+
+          {(boardsLoading || membersLoading) && (
+            <p className="text-sm text-[var(--text-muted)]">{t("dashboard.loadingAnalytics")}</p>
+          )}
+          {boardsError && <p className="text-sm text-red-600">{boardsError}</p>}
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div className="xl:col-span-2 rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+              <h3 className="text-base font-medium text-[var(--text-primary)] mb-4">
+                {t("dashboard.boardCreationTrend")}
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthlyBoardActivity}>
+                    <defs>
+                      <linearGradient id="boardsGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4f46e5" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Area
+                      type="monotone"
+                      dataKey="created"
+                      stroke="#4f46e5"
+                      strokeWidth={2}
+                      fill="url(#boardsGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+              <h3 className="text-base font-medium text-[var(--text-primary)] mb-4">
+                {t("dashboard.activityDistribution")}
+              </h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={boardAgeDistribution}
+                      innerRadius={54}
+                      outerRadius={85}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {boardAgeDistribution.map((entry, index) => (
+                        <Cell
+                          key={`${entry.name}-${index.toString()}`}
+                          fill={ANALYTICS_COLORS[index % ANALYTICS_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-1 text-sm mt-2">
+                {boardAgeDistribution.map((item, index) => (
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between text-[var(--text-secondary)]"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            ANALYTICS_COLORS[index % ANALYTICS_COLORS.length],
+                        }}
+                      />
+                      {item.name}
+                    </span>
+                    <span className="text-[var(--text-primary)]">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 bg-[var(--bg-primary)]">
+            <h3 className="text-base font-medium text-[var(--text-primary)] mb-3">
+              {t("dashboard.recentMembers")}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {recentMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="px-3 py-2 rounded-[var(--radius-md)] bg-[var(--bg-tertiary)]"
+                >
+                  <p className="text-sm text-[var(--text-primary)]">
+                    {member.username || member.email || member.user_id}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)] capitalize">
+                    {member.role}
+                  </p>
+                </div>
+              ))}
+              {recentMembers.length === 0 && (
+                <p className="text-sm text-[var(--text-muted)]">
+                  {t("dashboard.noMembersFound")}
+                </p>
+              )}
+            </div>
           </div>
         </section>
       )}
