@@ -28,6 +28,11 @@ const RecentPage = lazy(() =>
 const StarredPage = lazy(() =>
   import("@/pages/dashboard").then((m) => ({ default: m.StarredPage })),
 );
+const WorkspaceSettingsPage = lazy(() =>
+  import("@/pages/dashboard").then((m) => ({
+    default: m.WorkspaceSettingsPage,
+  })),
+);
 const BoardPage = lazy(() =>
   import("@/pages/board").then((m) => ({ default: m.BoardPage })),
 );
@@ -87,6 +92,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={null}>
             <StarredPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: "workspace-settings",
+        element: (
+          <Suspense fallback={null}>
+            <WorkspaceSettingsPage />
           </Suspense>
         ),
       },
