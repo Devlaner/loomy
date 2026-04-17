@@ -7,6 +7,8 @@ scripts/
 # IDE and editor
 .cursor/
 .vscode/
+.claude/
+CLAUDE.md
 .idea/
 *.sublime-*
 

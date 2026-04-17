@@ -1,0 +1,80 @@
+name: Feature request
+description: Suggest a new capability or enhancement for Loomy.
+title: "[FEATURE] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an idea. Feature requests are evaluated against Loomy's goal of being a self-hostable, collaborative whiteboard.
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing issues and discussions for this idea.
+          required: true
+        - label: This is a concrete feature request, not a general question (use Discussions for questions).
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Canvas / drawing tools
+        - Real-time collaboration
+        - Workspaces / sharing / permissions
+        - Auth / account management
+        - Export / import
+        - Search / navigation
+        - Accessibility / i18n
+        - Developer experience / self-hosting
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user need or pain point does this solve? Describe the situation, not the solution.
+      placeholder: As a workspace owner, I want to share a read-only link so external reviewers can see the board without creating an account.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should this work from the user's perspective?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways to solve the same problem, and why they are worse.
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Who benefits?
+      options:
+        - All users
+        - Workspace owners / admins
+        - Contributors / collaborators
+        - Viewers / guests
+        - Self-hosters / operators
+        - Developers working on Loomy
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Mockups, links to similar features in other tools, or references.

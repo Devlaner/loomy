@@ -1,0 +1,118 @@
+name: Bug report
+description: Report a defect in Loomy so we can fix it.
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please fill in as much detail as you can — it helps us reproduce and fix the problem faster.
+
+        **Do not report security vulnerabilities here.** See [SECURITY.md](../SECURITY.md) for private disclosure.
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: I am using the latest `main` or the most recent release.
+          required: true
+        - label: This is not a security vulnerability (those go to SECURITY.md).
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - API (FastAPI backend)
+        - Frontend (React SPA)
+        - Canvas / Excalidraw
+        - Real-time sync / WebSocket
+        - Auth / OAuth
+        - Workspaces / Boards / Elements
+        - Database / Migrations
+        - Docker / Deployment
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear, concise description of the bug.
+      placeholder: When I click "Share", the dialog opens but the link field is empty.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, numbered steps. Include sample data or screenshots if helpful.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Loomy version or commit
+      description: Tag (e.g. v0.2.0) or Git commit SHA.
+      placeholder: v0.2.0 or abc1234
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser (for frontend bugs), Python / Node version (for backend bugs).
+      placeholder: Windows 11, Chrome 128, Python 3.12.5, Node 22.8.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment mode
+      options:
+        - Local development (docker compose + uv + npm)
+        - Self-hosted production
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or console output
+      description: Paste API logs, browser console errors, or WebSocket frames. Redact tokens.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, screen recordings, related issues, or anything else that helps.
