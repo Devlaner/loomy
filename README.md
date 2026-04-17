@@ -121,7 +121,7 @@ This project adopts the [Contributor Covenant](CODE_OF_CONDUCT.md). Security vul
 
 ## Repo Activity
 
-![Loomy Repo Activity](https://repobeats.axiom.co/api/embed/loomy.svg "Repobeats analytics image")
+![Alt](https://repobeats.axiom.co/api/embed/bb0615184ccb97de3149b14662c5bc6e57bff2fa.svg "Repobeats analytics image")
 
 ## Contributors
 
