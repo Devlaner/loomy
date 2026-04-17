@@ -38,9 +38,15 @@ cd apps/frontend
 cp .env.example .env          # optional; VITE_API_URL defaults to http://localhost:8000
 npm install
 npm run dev                   # runs on :5173
+
+# 4. Git hooks (once, from the repo root)
+cd ..
+npm install                   # installs husky + lint-staged + commitlint at the repo root
 ```
 
 API docs: <http://localhost:8000/docs>
+
+> The root `npm install` is what installs the **pre-commit** and **commit-msg** git hooks via husky. Skip it and commits will not be linted or validated locally.
 
 ## Coding standards
 
@@ -103,19 +109,19 @@ Loomy follows the [Conventional Commits 1.0.0](https://www.conventionalcommits.o
 
 ### Allowed types
 
-| Type | When to use |
-|------|-------------|
-| `feat` | A new user-facing feature or capability |
-| `fix` | A bug fix |
-| `docs` | Documentation only (README, CONTRIBUTING, code comments) |
-| `style` | Formatting, whitespace, Prettier / ruff autofixes — no logic change |
-| `refactor` | Code change that neither fixes a bug nor adds a feature |
-| `perf` | Performance improvement |
-| `test` | Adding or updating tests |
-| `build` | Build system, dependencies, Dockerfiles |
-| `ci` | CI configuration (GitHub Actions, workflows) |
-| `chore` | Housekeeping that does not fit elsewhere (e.g. `.gitignore`) |
-| `revert` | Reverting a previous commit |
+| Type       | When to use                                                         |
+| ---------- | ------------------------------------------------------------------- |
+| `feat`     | A new user-facing feature or capability                             |
+| `fix`      | A bug fix                                                           |
+| `docs`     | Documentation only (README, CONTRIBUTING, code comments)            |
+| `style`    | Formatting, whitespace, Prettier / ruff autofixes — no logic change |
+| `refactor` | Code change that neither fixes a bug nor adds a feature             |
+| `perf`     | Performance improvement                                             |
+| `test`     | Adding or updating tests                                            |
+| `build`    | Build system, dependencies, Dockerfiles                             |
+| `ci`       | CI configuration (GitHub Actions, workflows)                        |
+| `chore`    | Housekeeping that does not fit elsewhere (e.g. `.gitignore`)        |
+| `revert`   | Reverting a previous commit                                         |
 
 ### Examples
 
@@ -144,7 +150,38 @@ feat(auth)!: require email verification before login
 
 ### Body and footer
 
-Add a body when the *why* is not obvious from the subject. Wrap at 72 columns. Reference issues in a footer (`Closes #123`, `Refs #456`).
+Add a body when the _why_ is not obvious from the subject. Wrap at 72 columns. Reference issues in a footer (`Closes #123`, `Refs #456`).
+
+### Enforcement
+
+Loomy enforces Conventional Commits locally via [commitlint](https://commitlint.js.org/) and runs [lint-staged](https://github.com/lint-staged/lint-staged) before each commit via [husky](https://typicode.github.io/husky/) git hooks.
+
+Hooks installed at the repo root:
+
+| Hook         | What it does                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `pre-commit` | Runs `lint-staged` — formats and lints only the files you changed. See [`.lintstagedrc.cjs`](./.lintstagedrc.cjs). |
+| `commit-msg` | Runs `commitlint --edit` against your commit message. See [`commitlint.config.cjs`](./commitlint.config.cjs).      |
+
+Install the hooks once after cloning:
+
+```bash
+# from the repo root
+npm install
+```
+
+This runs the `prepare` script, which installs husky and registers the git hooks in `.husky/`.
+
+What gets auto-fixed on commit:
+
+- `apps/frontend/**/*.{ts,tsx,js,jsx}` — Prettier format + ESLint `--fix`
+- `apps/frontend/**/*.{css,scss,json,md,yml,yaml,html}` — Prettier format
+- `api/app/**/*.py` — `ruff check --fix` + `ruff format`
+- Root `*.{md,yml,yaml,json}` — Prettier format
+
+If a tool fails (for example, ruff reports an unfixable error), the commit is aborted. Fix the issue and re-stage before committing again.
+
+If you ever need to bypass the hooks for a genuine emergency, use `git commit --no-verify`. Do not rely on this for everyday work — CI will still fail.
 
 ## Pull request workflow
 

@@ -21,3 +21,6 @@ ehthumbs.db
 *.log
 *.tmp
 .cache/
+
+# Root tooling (husky, lint-staged, commitlint)
+/node_modules/
