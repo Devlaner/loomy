@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Devlaner/loomy/security/advisories/new
+    about: Report security issues privately through GitHub Security Advisories. Do not open a public issue.
+  - name: Questions and discussion
+    url: https://github.com/Devlaner/loomy/discussions
+    about: Ask questions, share ideas, and discuss usage in GitHub Discussions.
+  - name: Documentation
+    url: https://github.com/Devlaner/loomy#readme
+    about: Check the README and docs/ before filing an issue.
