@@ -8,7 +8,9 @@ scripts/
 .cursor/
 .vscode/
 .claude/
+.agents/
 CLAUDE.md
+memory/
 .idea/
 *.sublime-*
 
