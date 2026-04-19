@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { useI18n } from "@/context/I18nContext";
-import { Button, Input } from "@/components/ui";
+import { Avatar, Button, Input } from "@/components/ui";
 import {
   apiFetch,
   formatApiError,
@@ -179,9 +179,9 @@ export function WorkspaceSettingsPage() {
     const q = memberSearch.trim().toLowerCase();
     if (!q) return members;
     return members.filter((member) => {
-      const username = (member.username ?? "").toLowerCase();
+      const name = (member.display_name ?? member.username ?? "").toLowerCase();
       const email = (member.email ?? "").toLowerCase();
-      return username.includes(q) || email.includes(q);
+      return name.includes(q) || email.includes(q);
     });
   }, [members, memberSearch]);
 
@@ -489,15 +489,21 @@ export function WorkspaceSettingsPage() {
                   key={member.id}
                   className="grid grid-cols-[2fr_1fr_auto] gap-3 px-4 py-3 border-t border-[var(--border)] items-center"
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm text-[var(--text-primary)] truncate">
-                      {member.username || member.email || member.user_id}
-                    </p>
-                    {member.email && (
-                      <p className="text-xs text-[var(--text-muted)] truncate">
-                        {member.email}
+                  <div className="min-w-0 flex items-center gap-3">
+                    <Avatar user={member} size={32} />
+                    <div className="min-w-0">
+                      <p className="text-sm text-[var(--text-primary)] truncate">
+                        {member.display_name ||
+                          member.username ||
+                          member.email ||
+                          member.user_id}
                       </p>
-                    )}
+                      {member.email && (
+                        <p className="text-xs text-[var(--text-muted)] truncate">
+                          {member.email}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <span className="text-sm text-[var(--text-secondary)] capitalize">
                     {member.role}
@@ -674,14 +680,20 @@ export function WorkspaceSettingsPage() {
               {recentMembers.map((member) => (
                 <div
                   key={member.id}
-                  className="px-3 py-2 rounded-[var(--radius-md)] bg-[var(--bg-tertiary)]"
+                  className="px-3 py-2 rounded-[var(--radius-md)] bg-[var(--bg-tertiary)] flex items-center gap-2"
                 >
-                  <p className="text-sm text-[var(--text-primary)]">
-                    {member.username || member.email || member.user_id}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)] capitalize">
-                    {member.role}
-                  </p>
+                  <Avatar user={member} size={28} />
+                  <div className="min-w-0">
+                    <p className="text-sm text-[var(--text-primary)] truncate">
+                      {member.display_name ||
+                        member.username ||
+                        member.email ||
+                        member.user_id}
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)] capitalize">
+                      {member.role}
+                    </p>
+                  </div>
                 </div>
               ))}
               {recentMembers.length === 0 && (
