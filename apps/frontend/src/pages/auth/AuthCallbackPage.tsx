@@ -1,6 +1,6 @@
 /**
- * OAuth callback – when API redirects here with ?token=...
- * Stores token and navigates to dashboard.
+ * OAuth callback — API redirects here with ?token=...&refresh_token=...
+ * Stores the token pair and navigates to the dashboard.
  */
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -10,8 +10,9 @@ import { useAuthStore } from "@/stores/authStore";
 export function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setTokens = useAuthStore((s) => s.setTokens);
   const token = searchParams.get("token");
+  const refreshToken = searchParams.get("refresh_token");
   const inviteToken = searchParams.get("invite_token");
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -21,7 +22,7 @@ export function AuthCallbackPage() {
       return;
     }
 
-    setToken(token);
+    setTokens({ token, refreshToken: refreshToken ?? null });
     const acceptMaybe = async () => {
       if (inviteToken) {
         await fetch(
@@ -38,7 +39,7 @@ export function AuthCallbackPage() {
       navigate("/dashboard", { replace: true });
     };
     void acceptMaybe();
-  }, [token, inviteToken, navigate, setToken, API_BASE]);
+  }, [token, refreshToken, inviteToken, navigate, setTokens, API_BASE]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
