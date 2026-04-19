@@ -35,4 +35,4 @@ jobs:
         run: uv run mypy .
 
       - name: Pytest
-        run: uv run pytest --tb=short -q || [ $? -eq 5 ]
+        run: uv run pytest --tb=short -q
