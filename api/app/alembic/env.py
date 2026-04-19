@@ -7,7 +7,14 @@ from alembic import context
 
 from app.config import settings
 from app.db.base import Base
-from app.modules.boards.model import Board, BoardStar, BoardView  # noqa: F401 - metadata
+from app.modules.boards.model import (  # noqa: F401 - metadata
+    Board,
+    BoardComment,
+    BoardShareToken,
+    BoardStar,
+    BoardTemplate,
+    BoardView,
+)
 from app.modules.elements.model import Element  # noqa: F401 - metadata
 from app.modules.users.model import OAuthAccount, User  # noqa: F401 - metadata
 from app.modules.workspaces.model import (  # noqa: F401 - metadata
