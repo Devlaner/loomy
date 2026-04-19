@@ -23,9 +23,11 @@ class UserResponse(BaseModel):
     id: UUID
     email: str
     username: str
-    first_name: str
-    last_name: str
+    first_name: str | None = None
+    last_name: str | None = None
+    display_name: str
     avatar_url: str | None = None
+    email_verified: bool = False
     created_at: datetime
     updated_at: datetime
 
