@@ -18,6 +18,8 @@ class WorkspaceResponse(BaseModel):
     slug: str
     owner_id: UUID
     owner_username: str | None = None
+    owner_display_name: str | None = None
+    owner_avatar_url: str | None = None
     created_at: datetime
     updated_at: datetime
 

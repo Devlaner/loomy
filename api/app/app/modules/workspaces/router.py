@@ -29,12 +29,17 @@ router.include_router(invitations_router)
 
 
 def _workspace_to_response(workspace: Workspace) -> WorkspaceResponse:
+    from app.modules.users.presenter import avatar_url_of, display_name_of
+
+    owner = workspace.owner
     data = {
         "id": workspace.id,
         "name": workspace.name,
         "slug": workspace.slug,
         "owner_id": workspace.owner_id,
-        "owner_username": workspace.owner.username if workspace.owner else None,
+        "owner_username": owner.username if owner else None,
+        "owner_display_name": display_name_of(owner) if owner else None,
+        "owner_avatar_url": avatar_url_of(owner) if owner else None,
         "created_at": workspace.created_at,
         "updated_at": workspace.updated_at,
     }
