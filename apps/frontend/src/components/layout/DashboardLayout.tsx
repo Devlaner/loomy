@@ -70,13 +70,7 @@ export function DashboardLayout() {
         return res.json();
       })
       .then((data) => {
-        if (data)
-          setUser({
-            id: data.id,
-            email: data.email,
-            username: data.username,
-            avatar_url: data.avatar_url ?? null,
-          });
+        if (data) setUser(data);
       })
       .catch(() => {
         logout();
