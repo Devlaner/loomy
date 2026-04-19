@@ -17,6 +17,8 @@ dependencies = [
     "email-validator",
     "httpx",
     "redis",
+    "boto3",
+    "python-multipart",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +27,7 @@ dev = [
     "mypy",
     "ruff",
     "types-python-jose",
+    "boto3-stubs[s3]",
 ]
 
 [tool.mypy]
