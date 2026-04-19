@@ -1,16 +1,38 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.api.router import api_router
 from app.config import settings
+from app.core.logging import configure_logging
+from app.core.redis import get_redis
+from app.db.session import SessionLocal
+from app.middleware.request_id import RequestIDMiddleware
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    logger.info("Loomy API starting", extra={"environment": settings.environment})
+    try:
+        from app.modules.boards.template_seed import seed_builtin_templates
+
+        with SessionLocal() as session:
+            seeded = seed_builtin_templates(session)
+        logger.info("Seeded %d built-in templates", seeded)
+    except Exception as exc:
+        # Seeding must never block startup — missing tables on a fresh
+        # deploy are fine; the log is enough signal.
+        logger.warning("Template seeding skipped: %s", exc)
     yield
+    logger.info("Loomy API shutting down")
 
 
 app = FastAPI(
@@ -35,10 +57,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestIDMiddleware)
 
 app.include_router(api_router, prefix="")
 
 
+def _check_db() -> tuple[bool, str | None]:
+    try:
+        with SessionLocal() as session:
+            session.execute(text("SELECT 1"))
+        return True, None
+    except Exception as exc:
+        return False, str(exc)[:200]
+
+
+def _check_redis() -> tuple[bool, str | None]:
+    try:
+        get_redis().ping()
+        return True, None
+    except Exception as exc:
+        return False, str(exc)[:200]
+
+
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> JSONResponse:
+    db_ok, db_err = _check_db()
+    redis_ok, redis_err = _check_redis()
+    status_ok = db_ok and redis_ok
+    payload: dict[str, object] = {
+        "status": "ok" if status_ok else "degraded",
+        "environment": settings.environment,
+        "checks": {
+            "database": {"ok": db_ok, "error": db_err},
+            "redis": {"ok": redis_ok, "error": redis_err},
+        },
+    }
+    return JSONResponse(status_code=200 if status_ok else 503, content=payload)
