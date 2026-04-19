@@ -21,7 +21,6 @@ import { useAuthStore } from "@/stores/authStore";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-/** Base URL for WebSocket (ws or wss from http or https). */
 export function getWsBaseUrl(): string {
   const url = API_BASE.trim();
   if (url.startsWith("https://")) return url.replace("https://", "wss://");
@@ -29,15 +28,85 @@ export function getWsBaseUrl(): string {
   return `ws://${url}`;
 }
 
-/** WebSocket URL for a board: /api/ws/boards/{boardId}?token=... */
-export function getBoardWsUrl(boardId: string, token: string): string {
+export function getBoardWsUrl(boardId: string): string {
   const base = getWsBaseUrl().replace(/\/$/, "");
-  const params = new URLSearchParams({ token });
-  return `${base}/api/ws/boards/${boardId}?${params.toString()}`;
+  return `${base}/api/ws/boards/${boardId}`;
 }
 
 function getToken(): string | null {
   return useAuthStore.getState().token;
+}
+
+function buildHeaders(
+  extra: HeadersInit | undefined,
+  token: string | null,
+): HeadersInit {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((extra as Record<string, string>) ?? {}),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+// Coalesce concurrent refreshes: refresh tokens rotate on every use,
+// so parallel calls would invalidate each other.
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  const run = async (): Promise<string | null> => {
+    const refreshToken = useAuthStore.getState().refreshToken;
+    if (!refreshToken) return null;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!res.ok) {
+        useAuthStore.getState().logout();
+        return null;
+      }
+      const data: {
+        access_token?: string;
+        refresh_token?: string | null;
+      } = await res.json();
+      if (!data.access_token) {
+        useAuthStore.getState().logout();
+        return null;
+      }
+      useAuthStore.getState().setTokens({
+        token: data.access_token,
+        refreshToken: data.refresh_token ?? null,
+      });
+      return data.access_token;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  };
+
+  refreshInFlight = run();
+  return refreshInFlight;
+}
+
+export async function logoutAndClear(): Promise<void> {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (refreshToken) {
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+    } catch {
+      // Clear locally even if the server call fails; refresh TTL bounds damage.
+    }
+  }
+  useAuthStore.getState().logout();
 }
 
 export async function apiFetch(
@@ -45,14 +114,27 @@ export async function apiFetch(
   options: RequestInit = {},
 ): Promise<Response> {
   const token = getToken();
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...options.headers,
-  };
-  if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: buildHeaders(options.headers, token),
+  });
+
+  // Skip the refresh path itself to avoid infinite recursion.
+  if (
+    response.status === 401 &&
+    !path.startsWith("/api/auth/refresh") &&
+    useAuthStore.getState().refreshToken
+  ) {
+    const fresh = await refreshAccessToken();
+    if (fresh) {
+      return fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers: buildHeaders(options.headers, fresh),
+      });
+    }
   }
-  return fetch(`${API_BASE}${path}`, { ...options, headers });
+
+  return response;
 }
 
 export interface Workspace {
@@ -70,6 +152,8 @@ export interface Board {
   workspace_id: string;
   name: string;
   owner_username?: string;
+  owner_display_name?: string | null;
+  owner_avatar_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +181,7 @@ export interface WorkspaceMember {
   id: string;
   user_id: string;
   username: string | null;
+  display_name: string | null;
   email: string | null;
   avatar_url: string | null;
   role: string;
