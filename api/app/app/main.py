@@ -67,16 +67,21 @@ def _check_db() -> tuple[bool, str | None]:
         with SessionLocal() as session:
             session.execute(text("SELECT 1"))
         return True, None
-    except Exception as exc:
-        return False, str(exc)[:200]
+    except Exception:
+        # Full trace goes to the log. The public /health response stays
+        # generic so we don't leak DSNs, internal hostnames, or the
+        # exact DB error to anyone hitting the endpoint.
+        logger.warning("Database health check failed", exc_info=True)
+        return False, "unavailable"
 
 
 def _check_redis() -> tuple[bool, str | None]:
     try:
         get_redis().ping()
         return True, None
-    except Exception as exc:
-        return False, str(exc)[:200]
+    except Exception:
+        logger.warning("Redis health check failed", exc_info=True)
+        return False, "unavailable"
 
 
 @app.get("/health")
