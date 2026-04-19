@@ -99,6 +99,35 @@ export function useBoards(workspaceId: string | null) {
     }
   }, []);
 
+  const createBoardFromTemplate = useCallback(
+    async (name: string, templateSlug: string): Promise<Board | null> => {
+      if (!workspaceId) return null;
+      setError(null);
+      try {
+        const res = await apiFetch("/api/boards/from-template", {
+          method: "POST",
+          body: JSON.stringify({
+            workspace_id: workspaceId,
+            template_slug: templateSlug,
+            name: name || null,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          setError(data.detail || "Failed to create board");
+          return null;
+        }
+        const board: Board = await res.json();
+        setBoards((prev) => [board, ...prev]);
+        return board;
+      } catch {
+        setError("Network error");
+        return null;
+      }
+    },
+    [workspaceId],
+  );
+
   const duplicateBoard = useCallback(
     async (boardId: string): Promise<Board | null> => {
       if (!workspaceId) return null;
@@ -129,6 +158,7 @@ export function useBoards(workspaceId: string | null) {
     error,
     fetchBoards,
     createBoard,
+    createBoardFromTemplate,
     updateBoard,
     deleteBoard,
     duplicateBoard,

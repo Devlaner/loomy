@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 interface ModalProps {
   title: string;
@@ -8,12 +8,38 @@ interface ModalProps {
 }
 
 export function Modal({ title, children, onClose, footer }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const first = panel.querySelector<HTMLElement>(
+      "input, textarea, select, [tabindex]:not([tabindex='-1'])",
+    );
+    first?.focus();
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded-[var(--radius-lg)] w-full max-w-md mx-4 shadow-[var(--shadow-lg)]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -24,6 +50,7 @@ export function Modal({ title, children, onClose, footer }: ModalProps) {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1"
           >
             ×

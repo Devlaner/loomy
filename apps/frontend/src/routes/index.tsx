@@ -19,6 +19,12 @@ const RegisterPage = lazy(() =>
 const AuthCallbackPage = lazy(() =>
   import("@/pages/auth").then((m) => ({ default: m.AuthCallbackPage })),
 );
+const ForgotPasswordPage = lazy(() =>
+  import("@/pages/auth").then((m) => ({ default: m.ForgotPasswordPage })),
+);
+const ResetPasswordPage = lazy(() =>
+  import("@/pages/auth").then((m) => ({ default: m.ResetPasswordPage })),
+);
 const InvitePage = lazy(() =>
   import("@/pages/auth").then((m) => ({ default: m.InvitePage })),
 );
@@ -38,6 +44,12 @@ const WorkspaceSettingsPage = lazy(() =>
 );
 const BoardPage = lazy(() =>
   import("@/pages/board").then((m) => ({ default: m.BoardPage })),
+);
+const SharedBoardPage = lazy(() =>
+  import("@/pages/board").then((m) => ({ default: m.SharedBoardPage })),
+);
+const VerifyEmailPage = lazy(() =>
+  import("@/pages/auth").then((m) => ({ default: m.VerifyEmailPage })),
 );
 
 const router = createBrowserRouter([
@@ -63,6 +75,22 @@ const router = createBrowserRouter([
     element: (
       <Suspense fallback={null}>
         <AuthCallbackPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/forgot-password",
+    element: (
+      <Suspense fallback={null}>
+        <ForgotPasswordPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/reset-password",
+    element: (
+      <Suspense fallback={null}>
+        <ResetPasswordPage />
       </Suspense>
     ),
   },
@@ -124,6 +152,22 @@ const router = createBrowserRouter([
           <BoardPage />
         </Suspense>
       </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/shared/:token",
+    element: (
+      <Suspense fallback={null}>
+        <SharedBoardPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/verify-email",
+    element: (
+      <Suspense fallback={null}>
+        <VerifyEmailPage />
+      </Suspense>
     ),
   },
   { path: "*", element: <Navigate to="/" replace /> },

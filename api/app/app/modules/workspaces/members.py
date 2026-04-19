@@ -23,12 +23,16 @@ router = APIRouter(prefix="/members", tags=["workspace-members"])
 
 
 def _member_response(member: WorkspaceMember) -> Dict[str, Any]:
+    from app.modules.users.presenter import avatar_url_of, display_name_of
+
+    user = member.user
     return {
         "id": str(member.user_id),
         "user_id": str(member.user_id),
-        "username": member.user.username if member.user else None,
-        "email": member.user.email if member.user else None,
-        "avatar_url": member.user.avatar_url if member.user else None,
+        "username": user.username if user else None,
+        "display_name": display_name_of(user) if user else None,
+        "email": user.email if user else None,
+        "avatar_url": avatar_url_of(user) if user else None,
         "role": member.role,
     }
 

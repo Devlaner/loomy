@@ -1,31 +1,33 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { Excalidraw } from "@excalidraw/excalidraw";
-import { viewportCoordsToSceneCoords } from "@excalidraw/excalidraw";
+import { Link, useParams } from "react-router-dom";
+import { Excalidraw, exportToBlob, exportToSvg } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "@/styles/excalidraw-board.css";
 
-/** Minimal type for Excalidraw API (getAppState, updateScene, onChange, onScrollChange) */
+import { CommentsPane } from "@/components/board/CommentsPane";
+import { PageTitle } from "@/components/PageTitle";
+import { ShareDialog } from "@/components/board/ShareDialog";
+import { Button, Dropdown } from "@/components/ui";
+import { useBoardCollab } from "@/hooks/useBoardCollab";
+import { useBoardContent } from "@/hooks/useBoardContent";
+import type { ExcalidrawSnapshot } from "@/hooks/useBoardContent";
+import { useBoardInit } from "@/hooks/useBoardInit";
+import { useTheme } from "@/context/ThemeContext";
+import { apiFetch } from "@/lib/api";
+import type { ElementJson } from "@/lib/collab/yjs-bridge";
+import { useAuthStore } from "@/stores/authStore";
+
 type ExcalidrawAPI = Parameters<
   NonNullable<React.ComponentProps<typeof Excalidraw>["excalidrawAPI"]>
 >[0];
-import { PageTitle } from "@/components/PageTitle";
-import { RemoteCursorsOverlay } from "@/components/board/RemoteCursorsOverlay";
-import { useBoardContent } from "@/hooks/useBoardContent";
-import type { ExcalidrawSnapshot } from "@/hooks/useBoardContent";
-import { useBoardWebSocket } from "@/hooks/useBoardWebSocket";
-import { useAuthStore } from "@/stores/authStore";
-import { useTheme } from "@/context/ThemeContext";
-import { apiFetch } from "@/lib/api";
 
-/** Map platform theme to Excalidraw theme (Excalidraw only supports light/dark) */
 function getExcalidrawTheme(
   theme: "light" | "dark" | "soft",
 ): "light" | "dark" {
   return theme === "dark" ? "dark" : "light";
 }
 
-/** Normalize loaded appState so Excalidraw doesn't crash: collaborators must be a Map, not a plain object (JSON). */
+// Excalidraw requires `collaborators` to be a Map; JSON can't represent one.
 function normalizeAppStateForExcalidraw(
   appState: unknown,
 ): Record<string, unknown> | undefined {
@@ -38,15 +40,6 @@ function normalizeAppStateForExcalidraw(
     collaborators: isMap ? collaborators : new Map(),
   } as Record<string, unknown>;
 }
-
-/** Viewport state for cursor overlay (scroll + zoom + offset) */
-export type ExcalidrawViewportState = {
-  scrollX: number;
-  scrollY: number;
-  zoom: { value: number };
-  offsetLeft: number;
-  offsetTop: number;
-};
 
 const EXCALIDRAW_UI_OPTIONS = {
   canvasActions: {
@@ -63,32 +56,94 @@ const EXCALIDRAW_UI_OPTIONS = {
 
 export function BoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
-  const navigate = useNavigate();
   const { theme } = useTheme();
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
-  const [boardName, setBoardName] = useState<string>("");
-  const [authChecked, setAuthChecked] = useState(false);
+
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawAPI | null>(
     null,
   );
-  const [viewportState, setViewportState] =
-    useState<ExcalidrawViewportState | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Ensure we have user for currentUserId (e.g. when opening board directly)
+  // Event bus so child panes can subscribe to server-pushed text
+  // events (e.g. comment.created, comment.deleted) without opening
+  // their own WebSocket. useBoardCollab forwards every event here.
+  type BoardEventHandler = (
+    event: string,
+    data: Record<string, unknown>,
+  ) => void;
+  const boardEventSubsRef = useRef<Set<BoardEventHandler>>(new Set());
+  const subscribeToBoardEvent = useCallback((h: BoardEventHandler) => {
+    boardEventSubsRef.current.add(h);
+    return () => {
+      boardEventSubsRef.current.delete(h);
+    };
+  }, []);
+  const fanoutBoardEvent = useCallback<BoardEventHandler>((event, data) => {
+    for (const h of boardEventSubsRef.current) h(event, data);
+  }, []);
+
+  const { authChecked, boardName } = useBoardInit(boardId ?? null, token);
+
+  const download = useCallback(
+    async (kind: "png" | "svg") => {
+      if (!excalidrawAPI) return;
+      const elements = excalidrawAPI.getSceneElements();
+      const appState = excalidrawAPI.getAppState();
+      const files = excalidrawAPI.getFiles();
+      try {
+        let url: string;
+        let filename: string;
+        if (kind === "png") {
+          const blob = await exportToBlob({
+            elements,
+            appState: {
+              ...appState,
+              exportWithDarkMode: false,
+              exportBackground: true,
+            },
+            files,
+            mimeType: "image/png",
+          });
+          url = URL.createObjectURL(blob);
+          filename = `${boardName || "board"}.png`;
+        } else {
+          const svg = await exportToSvg({
+            elements,
+            appState: {
+              ...appState,
+              exportWithDarkMode: false,
+              exportBackground: true,
+            },
+            files,
+          });
+          const blob = new Blob([svg.outerHTML], {
+            type: "image/svg+xml",
+          });
+          url = URL.createObjectURL(blob);
+          filename = `${boardName || "board"}.svg`;
+        }
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      } catch {
+        // Silent fail — Excalidraw's built-in export remains a fallback.
+      }
+    },
+    [excalidrawAPI, boardName],
+  );
+
   useEffect(() => {
     if (!token || user) return;
     apiFetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data)
-          setUser({
-            id: data.id,
-            email: data.email,
-            username: data.username,
-            avatar_url: data.avatar_url ?? null,
-          });
+        if (data) setUser(data);
       })
       .catch(() => {});
   }, [token, user, setUser]);
@@ -129,41 +184,108 @@ export function BoardPage() {
     [excalidrawAPI],
   );
 
-  const { remoteCursors, sendCursor } = useBoardWebSocket(
-    boardId ?? null,
-    token,
-    {
-      currentUserId: user?.id ?? null,
-      onRemoteDocument,
+  const onRemoteElements = useCallback(
+    (elements: ElementJson[]) => {
+      if (!excalidrawAPI) return;
+      excalidrawAPI.updateScene({
+        elements: elements as unknown as Parameters<
+          ExcalidrawAPI["updateScene"]
+        >[0]["elements"],
+      });
     },
+    [excalidrawAPI],
   );
 
-  const rafRef = useRef<number | null>(null);
-  const sendCursorRef = useRef(sendCursor);
+  const {
+    remoteCursors,
+    sendCursor,
+    syncLocalElements,
+    seedFromSnapshot,
+    encodeYjsState,
+    applyYjsState,
+    undo,
+    redo,
+  } = useBoardCollab(boardId ?? null, token, {
+    currentUserId: user?.id ?? null,
+    onRemoteDocument,
+    onRemoteElements,
+    onRemoteEvent: fanoutBoardEvent,
+  });
 
+  // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z drive the collab-aware undo stack
+  // (only undoes the local user's own ops, not remote ones).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key === "z" || e.key === "Z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (e.key === "y" || e.key === "Y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
+
+  // Excalidraw's native pointer hook. Fires reliably (pointermove on
+  // the wrapper div is stopPropagation'd by Excalidraw itself) and
+  // hands us scene coordinates directly, so no viewport math here.
+  const sendCursorRef = useRef(sendCursor);
   useEffect(() => {
     sendCursorRef.current = sendCursor;
   }, [sendCursor]);
+  const onPointerUpdate = useCallback(
+    (payload: { pointer: { x: number; y: number } }) => {
+      const { x, y } = payload.pointer;
+      if (typeof x === "number" && typeof y === "number") {
+        sendCursorRef.current(x, y);
+      }
+    },
+    [],
+  );
 
+  // Render remote cursors via Excalidraw's native `collaborators` Map.
+  // Excalidraw draws the cursor, label, and handles all positioning /
+  // zoom / pan transforms inside the canvas itself.
+  const CURSOR_COLORS = [
+    "#e11d48",
+    "#d97706",
+    "#16a34a",
+    "#0891b2",
+    "#2563eb",
+    "#7c3aed",
+    "#db2777",
+    "#0d9488",
+  ];
   useEffect(() => {
-    if (!boardId || !token) return;
-    apiFetch(`/api/boards/${boardId}`)
-      .then((res) => {
-        if (!res.ok) {
-          navigate("/dashboard");
-          return;
-        }
-        return res.json();
-      })
-      .then(async (data) => {
-        if (data) {
-          setBoardName(data.name);
-          await apiFetch(`/api/boards/${boardId}/open`, { method: "POST" });
-        }
-        setAuthChecked(true);
-      })
-      .catch(() => navigate("/dashboard"));
-  }, [boardId, token, navigate]);
+    if (!excalidrawAPI) return;
+    const collaborators = new Map<string, Record<string, unknown>>();
+    for (const [key, c] of Object.entries(remoteCursors)) {
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) {
+        hash = (hash * 31 + key.charCodeAt(i)) | 0;
+      }
+      const color = CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
+      collaborators.set(key, {
+        pointer: { x: c.x, y: c.y, tool: "pointer" },
+        button: "up",
+        username: c.username,
+        color: { background: color, stroke: color },
+      });
+    }
+    excalidrawAPI.updateScene({
+      collaborators: collaborators as Parameters<
+        ExcalidrawAPI["updateScene"]
+      >[0]["collaborators"],
+    });
+    // CURSOR_COLORS is a module-const-like array; exhaustive-deps would
+    // force a useMemo indirection that adds no value here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [excalidrawAPI, remoteCursors]);
 
   const initialData = snapshot
     ? ({
@@ -175,24 +297,40 @@ export function BoardPage() {
       } as React.ComponentProps<typeof Excalidraw>["initialData"])
     : undefined;
 
+  // Keep the latest elements+appState in refs so the deferred getter
+  // below can read them at save time without re-encoding the Y.Doc on
+  // every pointer move (that ran 60x/sec during drag and was the main
+  // reason the canvas felt sluggish).
+  const latestElementsRef = useRef<readonly unknown[]>([]);
+  const latestAppStateRef = useRef<unknown>(undefined);
+
   const handleChange = useCallback(
     (elements: readonly unknown[], appState: unknown) => {
-      const content: ExcalidrawSnapshot = {
-        elements: [...elements],
-        appState: appState as ExcalidrawSnapshot["appState"],
-      };
-      latestContentRef.current = content;
-      scheduleSave(content);
+      syncLocalElements(elements as readonly ElementJson[]);
+      latestElementsRef.current = elements;
+      latestAppStateRef.current = appState;
+      scheduleSave(() => {
+        const content: ExcalidrawSnapshot = {
+          elements: [...latestElementsRef.current],
+          appState: latestAppStateRef.current as ExcalidrawSnapshot["appState"],
+          yjs_update: encodeYjsState(),
+        };
+        latestContentRef.current = content;
+        return content;
+      });
     },
-    [scheduleSave],
+    [scheduleSave, syncLocalElements, encodeYjsState],
   );
 
-  // Save on refresh/close so we don't lose content waiting for debounce
   useEffect(() => {
     const onBeforeUnload = () => {
       clearPendingSave();
       const content = latestContentRef.current;
-      if (content?.elements?.length || content?.appState) {
+      if (
+        content?.elements?.length ||
+        content?.appState ||
+        content?.yjs_update
+      ) {
         saveContent(content);
       }
     };
@@ -200,17 +338,34 @@ export function BoardPage() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [clearPendingSave, saveContent]);
 
-  // Apply loaded snapshot when API is ready (in case initialData didn't apply)
   useEffect(() => {
     if (!excalidrawAPI || !snapshot || initialSnapshotAppliedRef.current)
       return;
-    const elements = Array.isArray(snapshot.elements)
-      ? snapshot.elements
-      : undefined;
+
     const appState =
       normalizeAppStateForExcalidraw(snapshot.appState) ??
       snapshot.appState ??
       undefined;
+
+    if (snapshot.yjs_update) {
+      applyYjsState(snapshot.yjs_update);
+      if (appState != null) {
+        excalidrawAPI.updateScene({
+          elements: excalidrawAPI.getSceneElements() as Parameters<
+            ExcalidrawAPI["updateScene"]
+          >[0]["elements"],
+          appState: appState as Parameters<
+            ExcalidrawAPI["updateScene"]
+          >[0]["appState"],
+        });
+      }
+      initialSnapshotAppliedRef.current = true;
+      return;
+    }
+
+    const elements = Array.isArray(snapshot.elements)
+      ? snapshot.elements
+      : undefined;
     if (elements != null || appState != null) {
       excalidrawAPI.updateScene({
         elements: (elements ?? excalidrawAPI.getSceneElements()) as Parameters<
@@ -220,72 +375,16 @@ export function BoardPage() {
           ExcalidrawAPI["updateScene"]
         >[0]["appState"],
       });
+      if (elements) {
+        seedFromSnapshot(elements as readonly ElementJson[]);
+      }
       initialSnapshotAppliedRef.current = true;
     }
-  }, [excalidrawAPI, snapshot]);
+  }, [excalidrawAPI, snapshot, seedFromSnapshot, applyYjsState]);
 
   useEffect(() => {
     if (boardId != null) initialSnapshotAppliedRef.current = false;
   }, [boardId]);
-
-  const handleExcalidrawAPI = useCallback((api: ExcalidrawAPI) => {
-    setExcalidrawAPI(api);
-    const appState = api.getAppState();
-    setViewportState({
-      scrollX: appState.scrollX,
-      scrollY: appState.scrollY,
-      zoom: appState.zoom,
-      offsetLeft: appState.offsetLeft,
-      offsetTop: appState.offsetTop,
-    });
-    api.onChange(() => {
-      const s = api.getAppState();
-      setViewportState({
-        scrollX: s.scrollX,
-        scrollY: s.scrollY,
-        zoom: s.zoom,
-        offsetLeft: s.offsetLeft,
-        offsetTop: s.offsetTop,
-      });
-    });
-    api.onScrollChange((scrollX, scrollY, zoom) => {
-      const s = api.getAppState();
-      setViewportState({
-        scrollX,
-        scrollY,
-        zoom,
-        offsetLeft: s.offsetLeft,
-        offsetTop: s.offsetTop,
-      });
-    });
-  }, []);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!excalidrawAPI || !containerRef.current) return;
-    const container = containerRef.current;
-    const onPointerMove = (e: PointerEvent) => {
-      if (rafRef.current != null) return;
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        const appState = excalidrawAPI.getAppState();
-        const scene = viewportCoordsToSceneCoords(
-          { clientX: e.clientX, clientY: e.clientY },
-          {
-            zoom: appState.zoom,
-            offsetLeft: appState.offsetLeft,
-            offsetTop: appState.offsetTop,
-            scrollX: appState.scrollX,
-            scrollY: appState.scrollY,
-          },
-        );
-        sendCursorRef.current(scene.x, scene.y);
-      });
-    };
-    container.addEventListener("pointermove", onPointerMove);
-    return () => container.removeEventListener("pointermove", onPointerMove);
-  }, [excalidrawAPI]);
 
   if (!authChecked || !boardId) {
     return (
@@ -308,29 +407,79 @@ export function BoardPage() {
         <span className="text-sm font-medium text-[var(--text-primary)]">
           {boardName || "Board"}
         </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Dropdown
+            trigger={
+              <Button type="button" variant="outline" size="sm">
+                Export
+              </Button>
+            }
+          >
+            <button
+              type="button"
+              onClick={() => download("png")}
+              className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+            >
+              PNG image
+            </button>
+            <button
+              type="button"
+              onClick={() => download("svg")}
+              className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+            >
+              SVG vector
+            </button>
+          </Dropdown>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCommentsOpen((v) => !v)}
+          >
+            Comments
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShareOpen(true)}
+          >
+            Share
+          </Button>
+        </div>
       </header>
-      <div className="flex-1 min-h-0 relative" ref={containerRef}>
-        {contentLoading ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-[var(--text-muted)]">Loading canvas...</div>
-          </div>
-        ) : (
-          <>
-            <div className="excalidraw-board h-full w-full">
-              <Excalidraw
-                key={boardId}
-                theme={getExcalidrawTheme(theme)}
-                UIOptions={EXCALIDRAW_UI_OPTIONS}
-                initialData={initialData}
-                onChange={handleChange}
-                excalidrawAPI={handleExcalidrawAPI}
-              />
+      {shareOpen && (
+        <ShareDialog boardId={boardId} onClose={() => setShareOpen(false)} />
+      )}
+      <div className="flex-1 min-h-0 flex">
+        <div className="flex-1 min-h-0 relative" ref={containerRef}>
+          {contentLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-[var(--text-muted)]">Loading canvas...</div>
             </div>
-            <RemoteCursorsOverlay
-              viewportState={viewportState}
-              cursors={remoteCursors}
-            />
-          </>
+          ) : (
+            <>
+              <div className="excalidraw-board h-full w-full">
+                <Excalidraw
+                  key={boardId}
+                  theme={getExcalidrawTheme(theme)}
+                  UIOptions={EXCALIDRAW_UI_OPTIONS}
+                  initialData={initialData}
+                  onChange={handleChange}
+                  onPointerUpdate={onPointerUpdate}
+                  excalidrawAPI={setExcalidrawAPI}
+                />
+              </div>
+            </>
+          )}
+        </div>
+        {commentsOpen && (
+          <CommentsPane
+            boardId={boardId}
+            currentUserId={user?.id ?? null}
+            onClose={() => setCommentsOpen(false)}
+            subscribeToBoardEvent={subscribeToBoardEvent}
+          />
         )}
       </div>
     </div>

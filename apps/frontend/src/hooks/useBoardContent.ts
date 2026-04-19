@@ -3,10 +3,12 @@ import { apiFetch } from "@/lib/api";
 
 const SNAPSHOT_TYPE = "excalidraw_snapshot";
 
-/** Persisted Excalidraw scene (elements + appState) */
 export type ExcalidrawSnapshot = {
   elements?: readonly unknown[] | null;
   appState?: Readonly<Record<string, unknown>> | null;
+  // Authoritative shared state when present (base64 Yjs update).
+  // Legacy boards have only `elements`/`appState`.
+  yjs_update?: string | null;
 };
 
 export function useBoardContent(boardId: string | null) {
@@ -84,12 +86,23 @@ export function useBoardContent(boardId: string | null) {
     [boardId],
   );
 
+  // Accept either a value or a lazy getter. The getter is resolved at
+  // save time, so callers can skip expensive work (e.g. encoding the
+  // full Y.Doc) until the debounce window actually fires.
   const scheduleSave = useCallback(
-    (content: ExcalidrawSnapshot) => {
+    (
+      contentOrGetter:
+        | ExcalidrawSnapshot
+        | (() => ExcalidrawSnapshot | null | undefined),
+    ) => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
-        saveContent(content);
         saveTimeoutRef.current = null;
+        const content =
+          typeof contentOrGetter === "function"
+            ? contentOrGetter()
+            : contentOrGetter;
+        if (content) saveContent(content);
       }, 1000);
     },
     [saveContent],

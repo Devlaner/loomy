@@ -16,6 +16,7 @@ import { formatApiError } from "@/lib/api";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { useBoards } from "@/hooks/useBoards";
 import { useStarredBoards } from "@/hooks/useStarredBoards";
+import { useTemplates } from "@/hooks/useTemplates";
 import { useAuthStore } from "@/stores/authStore";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import type { Board } from "@/lib/api";
@@ -64,10 +65,16 @@ export function DashboardPage() {
     error: boardsError,
     fetchBoards,
     createBoard,
+    createBoardFromTemplate,
     updateBoard,
     deleteBoard,
     duplicateBoard,
   } = useBoards(selectedWorkspaceId);
+
+  const { templates } = useTemplates();
+  const [creatingFromTemplate, setCreatingFromTemplate] = useState<
+    string | null
+  >(null);
 
   const {
     boards: starredBoards,
@@ -98,12 +105,6 @@ export function DashboardPage() {
     fetchStarredBoards();
   }, [fetchStarredBoards]);
 
-  useEffect(() => {
-    if (workspaces.length > 0 && !selectedWorkspaceId) {
-      setSelectedWorkspaceId(workspaces[0].id);
-    }
-  }, [workspaces, selectedWorkspaceId, setSelectedWorkspaceId]);
-
   const filteredAndSortedBoards = useMemo(() => {
     let result = [...boards];
     if (searchQuery.trim()) {
@@ -111,6 +112,7 @@ export function DashboardPage() {
       result = result.filter((b) => b.name.toLowerCase().includes(q));
     }
     if (filterBy === "owned" && user) {
+      // Match either modern username or the shared user id exposure.
       result = result.filter((b) => b.owner_username === user.username);
     }
     result.sort((a, b) => {
@@ -148,6 +150,17 @@ export function DashboardPage() {
     }
   }
 
+  async function handlePickTemplate(slug: string) {
+    if (creatingFromTemplate) return;
+    setCreatingFromTemplate(slug);
+    try {
+      const board = await createBoardFromTemplate("", slug);
+      if (board) navigate(`/boards/${board.id}`);
+    } finally {
+      setCreatingFromTemplate(null);
+    }
+  }
+
   if (!user) return null;
 
   return (
@@ -176,13 +189,43 @@ export function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateBoard(true)}
-                  className="shrink-0 w-40 h-24 flex flex-col items-center justify-center rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--border)] hover:border-[var(--border-focus)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                  className="shrink-0 w-48 h-28 flex flex-col items-center justify-center rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--border)] hover:border-[var(--border-focus)] hover:bg-[var(--bg-tertiary)] transition-colors"
                 >
-                  <span className="text-2xl text-[var(--text-muted)]">+</span>
+                  <span
+                    aria-hidden
+                    className="text-2xl text-[var(--text-muted)]"
+                  >
+                    +
+                  </span>
                   <span className="text-sm text-[var(--text-secondary)] mt-1">
                     {t("dashboard.blankBoard")}
                   </span>
                 </button>
+                {templates
+                  .filter((tpl) => tpl.slug !== "blank")
+                  .map((tpl) => {
+                    const busy = creatingFromTemplate === tpl.slug;
+                    return (
+                      <button
+                        key={tpl.slug}
+                        type="button"
+                        disabled={creatingFromTemplate !== null}
+                        onClick={() => handlePickTemplate(tpl.slug)}
+                        className="shrink-0 w-48 h-28 flex flex-col items-start justify-between text-left p-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-secondary)] hover:border-[var(--border-focus)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-60 disabled:cursor-wait"
+                        title={tpl.description}
+                      >
+                        <span className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
+                          {tpl.category}
+                        </span>
+                        <span className="text-sm font-medium text-[var(--text-primary)] line-clamp-2">
+                          {tpl.name}
+                        </span>
+                        <span className="text-xs text-[var(--text-muted)]">
+                          {busy ? "Creating..." : "Use template"}
+                        </span>
+                      </button>
+                    );
+                  })}
               </div>
             </section>
 
@@ -599,7 +642,7 @@ function BoardCard({
           {formatDate(board.updated_at)} ·{" "}
           {board.owner_username === user?.username
             ? t("dashboard.you")
-            : (board.owner_username ?? "—")}
+            : board.owner_display_name || board.owner_username || "—"}
         </p>
       </Link>
     </Card>
@@ -645,7 +688,7 @@ function BoardRow({
       <td className="px-4 py-3 text-[var(--text-secondary)]">
         {board.owner_username === user?.username
           ? t("dashboard.you")
-          : (board.owner_username ?? "—")}
+          : board.owner_display_name || board.owner_username || "—"}
       </td>
       <td className="px-2 py-3">
         <BoardActions

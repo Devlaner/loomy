@@ -13,7 +13,7 @@ export function LoginPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const setToken = useAuthStore((s) => s.setToken);
+  const setTokens = useAuthStore((s) => s.setTokens);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,7 +34,10 @@ export function LoginPage() {
         setError(formatApiError(data.detail, "Login failed"));
         return;
       }
-      setToken(data.access_token);
+      setTokens({
+        token: data.access_token,
+        refreshToken: data.refresh_token ?? null,
+      });
       const inviteToken = searchParams.get("invite_token");
       if (inviteToken) {
         const acceptRes = await fetch(
@@ -105,6 +108,14 @@ export function LoginPage() {
               required
               autoComplete="current-password"
             />
+            <div className="text-right">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-[var(--accent)] hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             {error && <p className="text-sm text-[var(--error)]">{error}</p>}
             <Button type="submit" fullWidth size="lg" disabled={loading}>
               {loading ? "..." : t("common.login")}

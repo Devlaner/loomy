@@ -187,7 +187,7 @@ export function StarredPage() {
                   <td className="px-4 py-3 text-[var(--text-secondary)]">
                     {board.owner_username === user?.username
                       ? t("dashboard.you")
-                      : (board.owner_username ?? "—")}
+                      : board.owner_display_name || board.owner_username || "—"}
                   </td>
                   <td className="px-2 py-3">
                     <BoardActions

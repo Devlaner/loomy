@@ -2,38 +2,41 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import Base, CreatedAtMixin, TimestampedMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.modules.workspaces.model import WorkspaceMember
 
 
-class User(Base):
+class User(Base, UUIDMixin, TimestampedMixin):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
     )
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
-    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    username: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False, index=True
+    )
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Avatar sources, resolved in this order: `avatar_key` (presigned
+    # URL from our storage) -> `avatar_url` (external OAuth CDN) ->
+    # initials bubble in the UI.
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    avatar_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
     )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(
@@ -44,21 +47,17 @@ class User(Base):
     )
 
 
-class OAuthAccount(Base):
+class OAuthAccount(Base, UUIDMixin, CreatedAtMixin):
     __tablename__ = "oauth_accounts"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     provider: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    provider_user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+    provider_user_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True
     )
 
     user: Mapped["User"] = relationship("User", back_populates="oauth_accounts")
