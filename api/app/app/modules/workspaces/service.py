@@ -44,11 +44,16 @@ def create_workspace_for_user(db: Session, user: User, data: WorkspaceCreate) ->
 
 
 def create_default_workspace_for_user(
-    db: Session, user: User, first_name: str, last_name: str
+    db: Session,
+    user: User,
+    first_name: str | None = None,
+    last_name: str | None = None,
 ) -> Workspace:
-    """Create a default workspace from user's first and last name."""
-    name = f"{first_name} {last_name}".strip() or user.username
-    base_slug = f"{first_name}-{last_name}".strip().lower() or user.username
+    """Create a default workspace for a new user."""
+    first = (first_name or "").strip()
+    last = (last_name or "").strip()
+    name = f"{first} {last}".strip() or user.username
+    base_slug = f"{first}-{last}".strip("-").lower() or user.username
     slug = make_unique_slug(db, base_slug)
     return create_workspace(db, name=name, slug=slug, owner_id=user.id)
 
