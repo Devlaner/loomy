@@ -1,20 +1,38 @@
-from typing import TYPE_CHECKING, Dict, Any, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Tuple
 
 from sqlalchemy.orm import Session
 
-from app.core.jwt import create_access_token
+from app.core.jwt import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+)
 from app.core.security import verify_password
+from app.core.token_store import (
+    is_refresh_jti_valid,
+    revoke_refresh_jti,
+    store_refresh_jti,
+)
 from app.modules.auth.repository import get_user_for_auth
 from app.modules.auth.schemas import LoginRequest, Token
 from app.modules.users.repository import create as create_user
-from app.modules.users.repository import create_oauth_account
-from app.modules.users.repository import get_by_email
-from app.modules.users.repository import get_by_oauth
-from app.modules.users.repository import get_by_username
+from app.modules.users.repository import (
+    create_oauth_account,
+    get_by_email,
+    get_by_oauth,
+    get_by_username,
+)
 from app.modules.workspaces.service import create_default_workspace_for_user
 
 if TYPE_CHECKING:
     from app.modules.users.model import User
+
+
+def issue_token_pair(user_id: str) -> Token:
+    access = create_access_token(subject=user_id)
+    refresh, jti = create_refresh_token(subject=user_id)
+    store_refresh_jti(user_id, jti)
+    return Token(access_token=access, refresh_token=refresh)
 
 
 def login(db: Session, data: LoginRequest) -> Token | None:
@@ -23,16 +41,39 @@ def login(db: Session, data: LoginRequest) -> Token | None:
         return None
     if not verify_password(data.password, user.hashed_password):
         return None
-    return Token(access_token=create_access_token(subject=str(user.id)))
+    return issue_token_pair(str(user.id))
 
 
-def get_or_create_oauth_user(db: Session, info: Dict[str, Any]) -> Tuple["User", bool]:
-    """Returns (user, is_new)."""
+def rotate_refresh_token(refresh_token: str) -> Token | None:
+    decoded = decode_refresh_token(refresh_token)
+    if decoded is None:
+        return None
+    user_id, jti = decoded
+    if not is_refresh_jti_valid(jti, user_id):
+        return None
+    revoke_refresh_jti(jti)
+    return issue_token_pair(user_id)
+
+
+def logout(refresh_token: str | None) -> None:
+    if not refresh_token:
+        return
+    decoded = decode_refresh_token(refresh_token)
+    if decoded is None:
+        return
+    _, jti = decoded
+    revoke_refresh_jti(jti)
+
+
+def get_or_create_oauth_user(
+    db: Session, info: Dict[str, Any]
+) -> Tuple["User", bool]:
+    from datetime import datetime, timezone
+
     user = get_by_oauth(db, info["provider"], info["provider_user_id"])
     if user:
         return user, False
 
-    # Check if email exists - link account
     user = get_by_email(db, info["email"])
     if user:
         create_oauth_account(
@@ -41,9 +82,14 @@ def get_or_create_oauth_user(db: Session, info: Dict[str, Any]) -> Tuple["User",
             provider=info["provider"],
             provider_user_id=info["provider_user_id"],
         )
+        # OAuth provider already verified this email; mark it so.
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verified_at = datetime.now(timezone.utc)
+            db.add(user)
+            db.commit()
         return user, False
 
-    # Create new user - ensure unique username
     base_username = info["username"]
     username = base_username
     counter = 0
@@ -51,8 +97,8 @@ def get_or_create_oauth_user(db: Session, info: Dict[str, Any]) -> Tuple["User",
         counter += 1
         username = f"{base_username}{counter}"
 
-    first_name = info.get("first_name") or "User"
-    last_name = info.get("last_name") or ""
+    first_name = info.get("first_name")
+    last_name = info.get("last_name")
 
     user = create_user(
         db,
@@ -63,6 +109,12 @@ def get_or_create_oauth_user(db: Session, info: Dict[str, Any]) -> Tuple["User",
         first_name=first_name,
         last_name=last_name,
     )
+    # OAuth provider already verified this email.
+    user.email_verified = True
+    user.email_verified_at = datetime.now(timezone.utc)
+    db.add(user)
+    db.commit()
+
     create_oauth_account(
         db,
         user_id=user.id,
