@@ -1,9 +1,14 @@
 import { type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useI18n } from "@/context/I18nContext";
+import { logoutAndClear } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
-import { Dropdown } from "@/components/ui";
+import { useState } from "react";
+import { Avatar, Dropdown } from "@/components/ui";
 import { NotificationIcon } from "@/components/icons";
+import { displayNameOf } from "@/lib/identity";
+import { AccountSettingsModal } from "@/components/account/AccountSettingsModal";
+import { GlobalSearch } from "./GlobalSearch";
 
 interface DashboardShellProps {
   sidebar: ReactNode;
@@ -28,7 +33,8 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)]">
@@ -81,7 +87,7 @@ export function DashboardShell({
       </aside>
       <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)]">
         <header className="h-14 shrink-0 flex items-center justify-between px-4 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-          <div />
+          <GlobalSearch />
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -100,22 +106,23 @@ export function DashboardShell({
             <Dropdown
               trigger={
                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-[var(--radius-md)] hover:bg-[var(--bg-tertiary)]">
-                  <div className="w-8 h-8 rounded-full bg-[var(--accent-soft)] flex items-center justify-center text-sm font-medium text-[var(--accent)]">
-                    {user?.username?.charAt(0)?.toUpperCase() || "?"}
-                  </div>
+                  <Avatar user={user} size={32} />
                   <span className="text-sm text-[var(--text-primary)]">
-                    {user?.username}
+                    {displayNameOf(user)}
                   </span>
-                  <span className="text-[var(--text-muted)]">▾</span>
+                  <span aria-hidden className="text-[var(--text-muted)]">
+                    ▾
+                  </span>
                 </div>
               }
               align="right"
             >
               <button
                 type="button"
+                onClick={() => setAccountOpen(true)}
                 className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
               >
-                {t("dashboard.profile") ?? "Profile"}
+                {t("dashboard.profile") ?? "Account settings"}
               </button>
               <button
                 type="button"
@@ -142,8 +149,7 @@ export function DashboardShell({
                 type="button"
                 className="block w-full text-left px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
                 onClick={() => {
-                  logout();
-                  navigate("/");
+                  void logoutAndClear().then(() => navigate("/"));
                 }}
               >
                 {t("common.logout")}
@@ -155,6 +161,9 @@ export function DashboardShell({
           {children}
         </main>
       </div>
+      {accountOpen && (
+        <AccountSettingsModal onClose={() => setAccountOpen(false)} />
+      )}
     </div>
   );
 }
