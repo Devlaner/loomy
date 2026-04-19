@@ -71,3 +71,54 @@ def duplicate_board_for_user(db: Session, board_id: UUID, user: User) -> Board |
     for elem in elements:
         create_element(db, board_id=new_board.id, type=elem.type, data=dict(elem.data))
     return new_board
+
+
+def create_board_from_template(
+    db: Session,
+    user: User,
+    workspace_id: UUID,
+    template_slug: str,
+    name: str | None = None,
+) -> Board | None:
+    from app.modules.boards.template_repo import get_by_slug
+    from app.modules.elements.repository import create as create_element
+
+    if not workspace_is_member(db, workspace_id, user.id):
+        return None
+    tpl = get_by_slug(db, template_slug)
+    if tpl is None:
+        return None
+    new_board = create_board(
+        db, name=name or tpl.name, workspace_id=workspace_id
+    )
+    if tpl.snapshot:
+        create_element(
+            db,
+            board_id=new_board.id,
+            type="excalidraw_snapshot",
+            data=dict(tpl.snapshot),
+        )
+    return new_board
+
+
+def search_boards_for_user(
+    db: Session, user: User, query: str, limit: int = 20
+) -> list[Board]:
+    """Case-insensitive substring match on board name, restricted to
+    workspaces the user is a member of.
+    """
+    from sqlalchemy import select
+    from app.modules.workspaces.model import WorkspaceMember
+
+    q = (query or "").strip()
+    if not q:
+        return []
+    stmt = (
+        select(Board)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Board.workspace_id)
+        .where(WorkspaceMember.user_id == user.id)
+        .where(Board.name.ilike(f"%{q}%"))
+        .order_by(Board.updated_at.desc())
+        .limit(limit)
+    )
+    return list(db.execute(stmt).scalars().all())
