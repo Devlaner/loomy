@@ -51,12 +51,68 @@ export function readElementsFromYMap(ymap: Y.Map<ElementJson>): ElementJson[] {
   return values;
 }
 
+export type FileJson = Record<string, unknown> & { id: string };
+
+export function applyFilesToYMap(
+  doc: Y.Doc,
+  ymap: Y.Map<FileJson>,
+  files: Readonly<Record<string, FileJson>>,
+): void {
+  // Files are insert-only by stable id. Excalidraw retains BinaryFileData
+  // blobs even after the referencing image element is deleted, and the
+  // local `files` map can transiently lack an entry that was uploaded by
+  // another peer — never delete from the shared map on absence, only add.
+  const ids = Object.keys(files);
+  if (ids.length === 0) return;
+  doc.transact(() => {
+    for (const id of ids) {
+      const f = files[id];
+      if (!f || typeof f.id !== "string") continue;
+      if (!ymap.has(id)) ymap.set(id, { ...f });
+    }
+  }, LOCAL_ORIGIN);
+}
+
+export function readFilesFromYMap(ymap: Y.Map<FileJson>): FileJson[] {
+  return Array.from(ymap.values());
+}
+
 function elementsEqual(a: ElementJson, b: ElementJson): boolean {
+  // Fast path — matching versionNonce always implies identical content,
+  // so we can skip the structural compare on the hot drag path.
   if (
     typeof a.versionNonce === "number" &&
-    typeof b.versionNonce === "number"
+    typeof b.versionNonce === "number" &&
+    a.versionNonce === b.versionNonce
   ) {
-    return a.versionNonce === b.versionNonce;
+    return true;
   }
-  return JSON.stringify(a) === JSON.stringify(b);
+  // Slow path — Excalidraw sometimes bumps an element's version /
+  // versionNonce without changing visible content (e.g. when applying
+  // an inbound updateScene). If we treated those as different, we'd
+  // echo a "no-op" change back to the peer, and that echo lands on
+  // their canvas mid-drag and snaps them back to the pre-drag spot.
+  return canonicalize(a) === canonicalize(b);
+}
+
+// Fields Excalidraw bumps on every "touch" without any user-visible
+// change. `updated` is the epoch ms of the last modification (re-stamped
+// when updateScene applies an inbound element); `version` /
+// `versionNonce` are Excalidraw's own collab-reconciliation cursors;
+// `seed` is for roughjs shape stability and shouldn't drift, but is
+// excluded defensively in case a clone path regenerates it.
+const DRIFT_FIELDS: ReadonlySet<string> = new Set([
+  "version",
+  "versionNonce",
+  "updated",
+  "seed",
+]);
+
+function canonicalize(el: ElementJson): string {
+  const keys = Object.keys(el)
+    .filter((k) => !DRIFT_FIELDS.has(k))
+    .sort();
+  const out: Record<string, unknown> = {};
+  for (const k of keys) out[k] = (el as Record<string, unknown>)[k];
+  return JSON.stringify(out);
 }
