@@ -14,7 +14,7 @@ import type { ExcalidrawSnapshot } from "@/hooks/useBoardContent";
 import { useBoardInit } from "@/hooks/useBoardInit";
 import { useTheme } from "@/context/ThemeContext";
 import { apiFetch } from "@/lib/api";
-import type { ElementJson } from "@/lib/collab/yjs-bridge";
+import type { ElementJson, FileJson } from "@/lib/collab/yjs-bridge";
 import { useAuthStore } from "@/stores/authStore";
 
 type ExcalidrawAPI = Parameters<
@@ -184,9 +184,25 @@ export function BoardPage() {
     [excalidrawAPI],
   );
 
+  // Hoisted via ref so the callback can reach into useBoardCollab's
+  // return value without a forward-reference TDZ — the hook is called
+  // below and consumes onRemoteElements as one of its options.
+  const readAllFilesRef = useRef<(() => FileJson[]) | null>(null);
   const onRemoteElements = useCallback(
     (elements: ElementJson[]) => {
       if (!excalidrawAPI) return;
+      // Register every known file first. If an image element references
+      // a fileId whose blob hasn't reached this client yet, Excalidraw
+      // marks the element as not-fully-loaded and disables interaction —
+      // the peer who didn't add the image can't move it. addFiles is
+      // idempotent, so calling it on every remote elements update is
+      // safe and only meaningful when a new file actually landed.
+      const files = readAllFilesRef.current?.() ?? [];
+      if (files.length > 0) {
+        excalidrawAPI.addFiles(
+          files as unknown as Parameters<ExcalidrawAPI["addFiles"]>[0],
+        );
+      }
       excalidrawAPI.updateScene({
         elements: elements as unknown as Parameters<
           ExcalidrawAPI["updateScene"]
@@ -196,10 +212,21 @@ export function BoardPage() {
     [excalidrawAPI],
   );
 
+  const onRemoteFiles = useCallback(
+    (files: FileJson[]) => {
+      if (!excalidrawAPI || files.length === 0) return;
+      excalidrawAPI.addFiles(
+        files as unknown as Parameters<ExcalidrawAPI["addFiles"]>[0],
+      );
+    },
+    [excalidrawAPI],
+  );
+
   const {
     remoteCursors,
     sendCursor,
-    syncLocalElements,
+    syncLocalChanges,
+    readAllFiles,
     seedFromSnapshot,
     encodeYjsState,
     applyYjsState,
@@ -209,8 +236,13 @@ export function BoardPage() {
     currentUserId: user?.id ?? null,
     onRemoteDocument,
     onRemoteElements,
+    onRemoteFiles,
     onRemoteEvent: fanoutBoardEvent,
   });
+
+  useEffect(() => {
+    readAllFilesRef.current = readAllFiles;
+  }, [readAllFiles]);
 
   // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z drive the collab-aware undo stack
   // (only undoes the local user's own ops, not remote ones).
@@ -303,23 +335,33 @@ export function BoardPage() {
   // reason the canvas felt sluggish).
   const latestElementsRef = useRef<readonly unknown[]>([]);
   const latestAppStateRef = useRef<unknown>(undefined);
+  const latestFilesRef = useRef<Record<string, unknown>>({});
 
   const handleChange = useCallback(
-    (elements: readonly unknown[], appState: unknown) => {
-      syncLocalElements(elements as readonly ElementJson[]);
+    (
+      elements: readonly unknown[],
+      appState: unknown,
+      files: Readonly<Record<string, unknown>>,
+    ) => {
+      syncLocalChanges(
+        elements as readonly ElementJson[],
+        files as Readonly<Record<string, FileJson>>,
+      );
       latestElementsRef.current = elements;
       latestAppStateRef.current = appState;
+      latestFilesRef.current = files as Record<string, unknown>;
       scheduleSave(() => {
         const content: ExcalidrawSnapshot = {
           elements: [...latestElementsRef.current],
           appState: latestAppStateRef.current as ExcalidrawSnapshot["appState"],
+          files: latestFilesRef.current,
           yjs_update: encodeYjsState(),
         };
         latestContentRef.current = content;
         return content;
       });
     },
-    [scheduleSave, syncLocalElements, encodeYjsState],
+    [scheduleSave, syncLocalChanges, encodeYjsState],
   );
 
   useEffect(() => {
@@ -347,6 +389,34 @@ export function BoardPage() {
       snapshot.appState ??
       undefined;
 
+    const seedFiles = () => {
+      // Prefer files materialized in the Y.Doc (authoritative); fall
+      // back to the legacy `files` field on the snapshot. Either way,
+      // every entry must reach Excalidraw via addFiles or image
+      // elements render as blank.
+      const fromDoc = readAllFiles();
+      if (fromDoc.length > 0) {
+        excalidrawAPI.addFiles(
+          fromDoc as unknown as Parameters<ExcalidrawAPI["addFiles"]>[0],
+        );
+        return;
+      }
+      const fromSnapshot = snapshot.files;
+      if (fromSnapshot && typeof fromSnapshot === "object") {
+        const arr = Object.values(fromSnapshot).filter(
+          (f): f is FileJson =>
+            !!f &&
+            typeof f === "object" &&
+            typeof (f as FileJson).id === "string",
+        );
+        if (arr.length > 0) {
+          excalidrawAPI.addFiles(
+            arr as unknown as Parameters<ExcalidrawAPI["addFiles"]>[0],
+          );
+        }
+      }
+    };
+
     if (snapshot.yjs_update) {
       applyYjsState(snapshot.yjs_update);
       if (appState != null) {
@@ -359,6 +429,7 @@ export function BoardPage() {
           >[0]["appState"],
         });
       }
+      seedFiles();
       initialSnapshotAppliedRef.current = true;
       return;
     }
@@ -378,9 +449,10 @@ export function BoardPage() {
       if (elements) {
         seedFromSnapshot(elements as readonly ElementJson[]);
       }
+      seedFiles();
       initialSnapshotAppliedRef.current = true;
     }
-  }, [excalidrawAPI, snapshot, seedFromSnapshot, applyYjsState]);
+  }, [excalidrawAPI, snapshot, seedFromSnapshot, applyYjsState, readAllFiles]);
 
   useEffect(() => {
     if (boardId != null) initialSnapshotAppliedRef.current = false;
