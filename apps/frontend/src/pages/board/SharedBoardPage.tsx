@@ -44,6 +44,7 @@ const VIEWER_UI_OPTIONS = {
 type Snapshot = {
   elements?: readonly unknown[] | null;
   appState?: Record<string, unknown> | null;
+  files?: Record<string, unknown> | null;
 };
 
 export function SharedBoardPage() {
@@ -109,6 +110,7 @@ export function SharedBoardPage() {
       normalizeAppStateForExcalidraw(snapshot.appState) ??
       snapshot.appState ??
       undefined,
+    files: snapshot.files ?? undefined,
   } as React.ComponentProps<typeof Excalidraw>["initialData"];
 
   return (
