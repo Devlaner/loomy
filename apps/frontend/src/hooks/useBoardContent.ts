@@ -6,6 +6,9 @@ const SNAPSHOT_TYPE = "excalidraw_snapshot";
 export type ExcalidrawSnapshot = {
   elements?: readonly unknown[] | null;
   appState?: Readonly<Record<string, unknown>> | null;
+  // Image blobs keyed by Excalidraw fileId. Image elements only carry
+  // a fileId reference, so without this map the image renders blank.
+  files?: Readonly<Record<string, unknown>> | null;
   // Authoritative shared state when present (base64 Yjs update).
   // Legacy boards have only `elements`/`appState`.
   yjs_update?: string | null;

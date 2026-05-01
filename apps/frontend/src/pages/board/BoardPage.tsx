@@ -14,7 +14,7 @@ import type { ExcalidrawSnapshot } from "@/hooks/useBoardContent";
 import { useBoardInit } from "@/hooks/useBoardInit";
 import { useTheme } from "@/context/ThemeContext";
 import { apiFetch } from "@/lib/api";
-import type { ElementJson } from "@/lib/collab/yjs-bridge";
+import type { ElementJson, FileJson } from "@/lib/collab/yjs-bridge";
 import { useAuthStore } from "@/stores/authStore";
 
 type ExcalidrawAPI = Parameters<
@@ -184,6 +184,10 @@ export function BoardPage() {
     [excalidrawAPI],
   );
 
+  // Files are registered separately via onRemoteFiles (which only
+  // fires for keys actually added to the Y.Doc files map), and via the
+  // initial seedFiles() pass below — so this handler doesn't need to
+  // re-read the whole files map on every drag tick.
   const onRemoteElements = useCallback(
     (elements: ElementJson[]) => {
       if (!excalidrawAPI) return;
@@ -196,10 +200,21 @@ export function BoardPage() {
     [excalidrawAPI],
   );
 
+  const onRemoteFiles = useCallback(
+    (files: FileJson[]) => {
+      if (!excalidrawAPI || files.length === 0) return;
+      excalidrawAPI.addFiles(
+        files as unknown as Parameters<ExcalidrawAPI["addFiles"]>[0],
+      );
+    },
+    [excalidrawAPI],
+  );
+
   const {
     remoteCursors,
     sendCursor,
-    syncLocalElements,
+    syncLocalChanges,
+    readAllFiles,
     seedFromSnapshot,
     encodeYjsState,
     applyYjsState,
@@ -209,6 +224,7 @@ export function BoardPage() {
     currentUserId: user?.id ?? null,
     onRemoteDocument,
     onRemoteElements,
+    onRemoteFiles,
     onRemoteEvent: fanoutBoardEvent,
   });
 
@@ -300,13 +316,23 @@ export function BoardPage() {
   // Keep the latest elements+appState in refs so the deferred getter
   // below can read them at save time without re-encoding the Y.Doc on
   // every pointer move (that ran 60x/sec during drag and was the main
-  // reason the canvas felt sluggish).
+  // reason the canvas felt sluggish). Files are deliberately NOT
+  // mirrored here — they're already encoded inside `yjs_update`, and
+  // duplicating image dataURLs in the saved snapshot would double the
+  // autosave payload on image-heavy boards.
   const latestElementsRef = useRef<readonly unknown[]>([]);
   const latestAppStateRef = useRef<unknown>(undefined);
 
   const handleChange = useCallback(
-    (elements: readonly unknown[], appState: unknown) => {
-      syncLocalElements(elements as readonly ElementJson[]);
+    (
+      elements: readonly unknown[],
+      appState: unknown,
+      files: Readonly<Record<string, unknown>>,
+    ) => {
+      syncLocalChanges(
+        elements as readonly ElementJson[],
+        files as Readonly<Record<string, FileJson>>,
+      );
       latestElementsRef.current = elements;
       latestAppStateRef.current = appState;
       scheduleSave(() => {
@@ -319,7 +345,7 @@ export function BoardPage() {
         return content;
       });
     },
-    [scheduleSave, syncLocalElements, encodeYjsState],
+    [scheduleSave, syncLocalChanges, encodeYjsState],
   );
 
   useEffect(() => {
@@ -347,6 +373,34 @@ export function BoardPage() {
       snapshot.appState ??
       undefined;
 
+    const seedFiles = () => {
+      // Prefer files materialized in the Y.Doc (authoritative); fall
+      // back to the legacy `files` field on the snapshot. Either way,
+      // every entry must reach Excalidraw via addFiles or image
+      // elements render as blank.
+      const fromDoc = readAllFiles();
+      if (fromDoc.length > 0) {
+        excalidrawAPI.addFiles(
+          fromDoc as unknown as Parameters<ExcalidrawAPI["addFiles"]>[0],
+        );
+        return;
+      }
+      const fromSnapshot = snapshot.files;
+      if (fromSnapshot && typeof fromSnapshot === "object") {
+        const arr = Object.values(fromSnapshot).filter(
+          (f): f is FileJson =>
+            !!f &&
+            typeof f === "object" &&
+            typeof (f as FileJson).id === "string",
+        );
+        if (arr.length > 0) {
+          excalidrawAPI.addFiles(
+            arr as unknown as Parameters<ExcalidrawAPI["addFiles"]>[0],
+          );
+        }
+      }
+    };
+
     if (snapshot.yjs_update) {
       applyYjsState(snapshot.yjs_update);
       if (appState != null) {
@@ -359,6 +413,7 @@ export function BoardPage() {
           >[0]["appState"],
         });
       }
+      seedFiles();
       initialSnapshotAppliedRef.current = true;
       return;
     }
@@ -378,9 +433,10 @@ export function BoardPage() {
       if (elements) {
         seedFromSnapshot(elements as readonly ElementJson[]);
       }
+      seedFiles();
       initialSnapshotAppliedRef.current = true;
     }
-  }, [excalidrawAPI, snapshot, seedFromSnapshot, applyYjsState]);
+  }, [excalidrawAPI, snapshot, seedFromSnapshot, applyYjsState, readAllFiles]);
 
   useEffect(() => {
     if (boardId != null) initialSnapshotAppliedRef.current = false;
