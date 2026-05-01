@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import * as Y from "yjs";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "@/styles/excalidraw-board.css";
 
 import { PageTitle } from "@/components/PageTitle";
 import { useTheme } from "@/context/ThemeContext";
+import {
+  readElementsFromYMap,
+  readFilesFromYMap,
+  type ElementJson,
+  type FileJson,
+} from "@/lib/collab/yjs-bridge";
+import { decodeYjsUpdate } from "@/lib/collab/yjs-persistence";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -45,7 +53,44 @@ type Snapshot = {
   elements?: readonly unknown[] | null;
   appState?: Record<string, unknown> | null;
   files?: Record<string, unknown> | null;
+  yjs_update?: string | null;
 };
+
+// New saves omit `files` because the same blobs are already inside
+// `yjs_update`. Decode the Y.Doc here so the read-only viewer renders
+// images regardless of whether the snapshot was written before or after
+// that change.
+function unpackSnapshot(snapshot: Snapshot): {
+  elements?: readonly unknown[];
+  files?: Record<string, unknown>;
+  appState?: Record<string, unknown>;
+} {
+  if (snapshot.yjs_update) {
+    try {
+      const doc = new Y.Doc();
+      Y.applyUpdate(doc, decodeYjsUpdate(snapshot.yjs_update));
+      const ymap = doc.getMap<ElementJson>("elements");
+      const yfiles = doc.getMap<FileJson>("files");
+      const elements = readElementsFromYMap(ymap);
+      const fileEntries = readFilesFromYMap(yfiles);
+      doc.destroy();
+      const files: Record<string, unknown> = {};
+      for (const f of fileEntries) files[f.id] = f;
+      return {
+        elements: elements.length > 0 ? elements : undefined,
+        files: fileEntries.length > 0 ? files : undefined,
+        appState: snapshot.appState ?? undefined,
+      };
+    } catch {
+      // Corrupt yjs_update — fall through to legacy fields.
+    }
+  }
+  return {
+    elements: snapshot.elements ?? undefined,
+    files: snapshot.files ?? undefined,
+    appState: snapshot.appState ?? undefined,
+  };
+}
 
 export function SharedBoardPage() {
   const { token } = useParams<{ token: string }>();
@@ -104,13 +149,14 @@ export function SharedBoardPage() {
     );
   }
 
+  const unpacked = unpackSnapshot(snapshot);
   const initialData = {
-    elements: snapshot.elements ?? undefined,
+    elements: unpacked.elements,
     appState:
-      normalizeAppStateForExcalidraw(snapshot.appState) ??
-      snapshot.appState ??
+      normalizeAppStateForExcalidraw(unpacked.appState) ??
+      unpacked.appState ??
       undefined,
-    files: snapshot.files ?? undefined,
+    files: unpacked.files,
   } as React.ComponentProps<typeof Excalidraw>["initialData"];
 
   return (

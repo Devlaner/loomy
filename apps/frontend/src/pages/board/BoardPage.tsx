@@ -184,25 +184,13 @@ export function BoardPage() {
     [excalidrawAPI],
   );
 
-  // Hoisted via ref so the callback can reach into useBoardCollab's
-  // return value without a forward-reference TDZ — the hook is called
-  // below and consumes onRemoteElements as one of its options.
-  const readAllFilesRef = useRef<(() => FileJson[]) | null>(null);
+  // Files are registered separately via onRemoteFiles (which only
+  // fires for keys actually added to the Y.Doc files map), and via the
+  // initial seedFiles() pass below — so this handler doesn't need to
+  // re-read the whole files map on every drag tick.
   const onRemoteElements = useCallback(
     (elements: ElementJson[]) => {
       if (!excalidrawAPI) return;
-      // Register every known file first. If an image element references
-      // a fileId whose blob hasn't reached this client yet, Excalidraw
-      // marks the element as not-fully-loaded and disables interaction —
-      // the peer who didn't add the image can't move it. addFiles is
-      // idempotent, so calling it on every remote elements update is
-      // safe and only meaningful when a new file actually landed.
-      const files = readAllFilesRef.current?.() ?? [];
-      if (files.length > 0) {
-        excalidrawAPI.addFiles(
-          files as unknown as Parameters<ExcalidrawAPI["addFiles"]>[0],
-        );
-      }
       excalidrawAPI.updateScene({
         elements: elements as unknown as Parameters<
           ExcalidrawAPI["updateScene"]
@@ -239,10 +227,6 @@ export function BoardPage() {
     onRemoteFiles,
     onRemoteEvent: fanoutBoardEvent,
   });
-
-  useEffect(() => {
-    readAllFilesRef.current = readAllFiles;
-  }, [readAllFiles]);
 
   // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z drive the collab-aware undo stack
   // (only undoes the local user's own ops, not remote ones).
@@ -332,10 +316,12 @@ export function BoardPage() {
   // Keep the latest elements+appState in refs so the deferred getter
   // below can read them at save time without re-encoding the Y.Doc on
   // every pointer move (that ran 60x/sec during drag and was the main
-  // reason the canvas felt sluggish).
+  // reason the canvas felt sluggish). Files are deliberately NOT
+  // mirrored here — they're already encoded inside `yjs_update`, and
+  // duplicating image dataURLs in the saved snapshot would double the
+  // autosave payload on image-heavy boards.
   const latestElementsRef = useRef<readonly unknown[]>([]);
   const latestAppStateRef = useRef<unknown>(undefined);
-  const latestFilesRef = useRef<Record<string, unknown>>({});
 
   const handleChange = useCallback(
     (
@@ -349,12 +335,10 @@ export function BoardPage() {
       );
       latestElementsRef.current = elements;
       latestAppStateRef.current = appState;
-      latestFilesRef.current = files as Record<string, unknown>;
       scheduleSave(() => {
         const content: ExcalidrawSnapshot = {
           elements: [...latestElementsRef.current],
           appState: latestAppStateRef.current as ExcalidrawSnapshot["appState"],
-          files: latestFilesRef.current,
           yjs_update: encodeYjsState(),
         };
         latestContentRef.current = content;

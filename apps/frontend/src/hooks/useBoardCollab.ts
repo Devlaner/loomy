@@ -6,7 +6,9 @@ import {
   PERSISTENCE_LOAD_ORIGIN,
   REMOTE_ORIGIN,
   applyElementsToYMap,
+  applyElementsToYMapInner,
   applyFilesToYMap,
+  applyFilesToYMapInner,
   readElementsFromYMap,
   readFilesFromYMap,
   type ElementJson,
@@ -154,14 +156,16 @@ export function useBoardCollab(
   // so a peer never sees an image element whose fileId hasn't been
   // populated in the files map yet (which renders the image as a
   // pending placeholder Excalidraw won't let you interact with).
+  // Calls the *Inner helpers (no nested transacts) so this is the
+  // single place that defines the transaction boundary and origin.
   const syncLocalChanges = useCallback(
     (
       elements: readonly ElementJson[],
       files: Readonly<Record<string, FileJson>> | null | undefined,
     ) => {
       doc.transact(() => {
-        if (files) applyFilesToYMap(doc, yfiles, files);
-        applyElementsToYMap(doc, ymap, elements);
+        if (files) applyFilesToYMapInner(yfiles, files);
+        applyElementsToYMapInner(ymap, elements);
       }, LOCAL_ORIGIN);
     },
     [doc, ymap, yfiles],
