@@ -1,0 +1,32 @@
+---
+description: REST API conventions and response schemas
+globs: api/app/**/*
+alwaysApply: false
+---
+
+# REST API Conventions
+
+All APIs must follow REST best practices.
+
+## Endpoint Conventions
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/resource` | List resources |
+| GET | `/api/resource/{id}` | Get by ID |
+| POST | `/api/resource` | Create |
+| PATCH | `/api/resource/{id}` | Update |
+| DELETE | `/api/resource/{id}` | Delete |
+
+## Pagination
+
+Use pagination for list endpoints:
+
+```
+GET /api/boards?page=1&limit=20
+```
+
+## Response Schemas
+
+- **Never return database models directly.**
+- **Always return Pydantic response schemas.**

@@ -1,0 +1,15 @@
+---
+description: Python coding standards
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python Standards
+
+- Follow **modern Python practices**.
+- Use **type hints everywhere**.
+- Keep functions **small and focused**.
+- **Avoid duplicated logic** (extract helpers, reuse).
+- Use **dependency injection** for database sessions.
+
+**Prefer clarity over cleverness.**

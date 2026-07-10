@@ -1,0 +1,27 @@
+---
+description: Use PowerShell instead of bash on Windows
+alwaysApply: true
+---
+
+# Windows PowerShell Commands
+
+This project runs on Windows. When suggesting or running terminal commands:
+- **Use PowerShell**, not bash
+- Avoid bash-specific syntax (e.g. `&&`, `;`, `$VAR`, `[[ ]]`, `rm -rf`)
+
+## Examples
+
+| Instead of (bash) | Use (PowerShell) |
+|-------------------|------------------|
+| `cd /path && npm install` | `cd \path; npm install` |
+| `rm -rf node_modules` | `Remove-Item -Recurse -Force node_modules` |
+| `export VAR=value` | `$env:VAR = "value"` |
+| `ls -la` | `Get-ChildItem` or `dir` |
+| `cat file.txt` | `Get-Content file.txt` |
+| `mkdir -p foo/bar` | `New-Item -ItemType Directory -Force foo\bar` |
+| `grep "pattern" file` | `Select-String "pattern" file` |
+
+## Notes
+- Use backslash `\` for Windows paths, or forward slash `/` (PowerShell accepts both)
+- Chain commands with `;` instead of `&&`
+- For multiline commands, use `` ` `` (backtick) as line continuation in PowerShell

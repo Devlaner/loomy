@@ -1,0 +1,18 @@
+---
+description: Redis usage for real-time, caching, and rate limiting
+globs: api/app/**/*
+alwaysApply: false
+---
+
+# Redis
+
+Redis is used for:
+
+- **WebSocket pub/sub**
+- **Presence tracking**
+- **Caching**
+- **Rate limiting**
+
+## Real-Time and Event Broadcasting
+
+When implementing **real-time collaboration** or **event broadcasting**, use **Redis pub/sub**—not direct in-memory communication.

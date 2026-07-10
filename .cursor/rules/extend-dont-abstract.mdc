@@ -1,0 +1,9 @@
+---
+description: Prefer extending modules over new abstractions
+alwaysApply: true
+---
+
+# Code Generation Preference
+
+- **Extend existing modules** instead of creating new abstractions.
+- Goal: **maintainability and readability** for an open-source project.

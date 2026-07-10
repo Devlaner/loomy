@@ -1,0 +1,28 @@
+---
+description: Real-time collaboration and WebSocket events
+globs: api/app/**/*
+alwaysApply: false
+---
+
+# Real-Time Collaboration
+
+Loomy supports **real-time collaboration**. Board updates should eventually be **broadcast through WebSockets**.
+
+## API Endpoints
+
+Support these operations for elements:
+
+- **Creating** elements
+- **Updating** elements
+- **Deleting** elements
+
+## WebSocket Events
+
+Events to broadcast:
+
+| Event | Purpose |
+|-------|---------|
+| `element.created` | New element added |
+| `element.updated` | Element changed |
+| `element.deleted` | Element removed |
+| `cursor.moved` | User cursor position |

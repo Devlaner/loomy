@@ -1,0 +1,24 @@
+---
+description: Use Excalidraw for the whiteboard canvas and research its APIs before making canvas changes
+globs: apps/frontend/src/**
+alwaysApply: false
+---
+
+# Excalidraw Canvas & Research Rule
+
+- **Use `@excalidraw/excalidraw` for the board/canvas UI**:
+  - When implementing or updating any whiteboard, board, or drawing canvas in the frontend, prefer the official Excalidraw React component and APIs (`Excalidraw`, `initialData`, `onChange`, `excalidrawAPI`, `UIOptions`, `theme`, etc.).
+  - Avoid building a custom canvas/interaction system from scratch unless there is a very strong, documented reason.
+
+- **Deep research before significant changes**:
+  - Before introducing or modifying core canvas behavior (selection, tools, sidebar, persistence, multi-user cursors, etc.), the agent should:
+    - Review the latest [Excalidraw docs](https://docs.excalidraw.com) and API (props, `excalidrawAPI`, `restore`, `sceneCoordsToViewportCoords`, etc.).
+    - Look for recommended patterns (initialData, onChange, updateScene, CSS variable overrides) in Excalidraw’s documentation.
+    - Align implementations with those patterns where practical.
+
+- **Integration expectations**:
+  - Canvas state (elements + appState) should be persisted via the backend’s elements API (`excalidraw_snapshot` type) and synced in real time via WebSocket when needed.
+  - Keep the server-side boards/elements model aligned with Excalidraw’s scene data (elements array + appState object).
+
+- **When in doubt**:
+  - If unsure how to implement a canvas feature, explore the Excalidraw docs and examples first, summarize options, then choose the approach that best fits Loomy’s backend and real-time architecture.

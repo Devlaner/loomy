@@ -5,14 +5,15 @@
 !.env.example
 scripts/
 # IDE and editor
-.cursor/
 .vscode/
-.claude/
-.agents/
-CLAUDE.md
 memory/
 .idea/
 *.sublime-*
+
+# Local agent overrides (shared agent config is tracked; keep personal/local files out)
+.claude/settings.local.json
+.claude/*.local.json
+.agents/**/*.local.*
 
 # OS
 .DS_Store

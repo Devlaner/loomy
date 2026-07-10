@@ -1,0 +1,27 @@
+---
+description: API modular architecture and workflow
+globs: api/app/**/*
+alwaysApply: false
+---
+
+# API Architecture – Modular Structure
+
+Before generating or modifying any API code, **read the entire `api/app` directory** and understand the existing folder and module structure.
+
+## Module Layout
+
+Each feature lives in `app/modules/<feature>/`. Every module typically contains:
+
+| File | Purpose |
+|------|---------|
+| `router.py` | HTTP endpoints |
+| `service.py` | Business logic |
+| `repository.py` | Data access |
+| `schemas.py` | Pydantic request/response models |
+| `model.py` | SQLAlchemy model(s) |
+
+## Rules
+
+- **Never introduce a different structure.** Follow this layout exactly.
+- **Extend existing modules** when adding functionality—don’t create unrelated folders.
+- **When unsure where code belongs**, inspect similar modules and mirror their structure.

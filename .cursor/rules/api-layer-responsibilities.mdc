@@ -1,0 +1,27 @@
+---
+description: API layer flow and responsibility separation
+globs: api/app/**/*
+alwaysApply: false
+---
+
+# API Layer Architecture
+
+All backend features follow this flow:
+
+```
+router → service → repository → database
+```
+
+## Responsibilities
+
+| Layer | File | Responsibility |
+|-------|------|----------------|
+| **router** | `router.py` | HTTP requests and responses only |
+| **service** | `service.py` | Business logic |
+| **repository** | `repository.py` | Database access via SQLAlchemy |
+| **schemas** | `schemas.py` | Request/response models (Pydantic) |
+| **model** | `model.py` | SQLAlchemy database models |
+
+## Rule
+
+**Never mix these responsibilities.** Each layer has a single concern.
