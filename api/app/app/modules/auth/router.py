@@ -184,7 +184,10 @@ async def github_callback(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to get user info from GitHub",
         )
-    user, _ = get_or_create_oauth_user(db, info)
+    try:
+        user, _ = get_or_create_oauth_user(db, info)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     token_pair = issue_token_pair(str(user.id))
     raw_invite = state_data.get("invite_token")
     invite_token = raw_invite if isinstance(raw_invite, str) and raw_invite else None
@@ -222,7 +225,10 @@ async def google_callback(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to get user info from Google",
         )
-    user, _ = get_or_create_oauth_user(db, info)
+    try:
+        user, _ = get_or_create_oauth_user(db, info)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     token_pair = issue_token_pair(str(user.id))
     raw_invite = state_data.get("invite_token")
     invite_token = raw_invite if isinstance(raw_invite, str) and raw_invite else None
