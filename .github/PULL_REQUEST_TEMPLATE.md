@@ -48,6 +48,12 @@ Closes #
 
 <!-- Anything reviewers should know: architectural decisions, trade-offs, dependencies added, follow-up work. -->
 
+## AI attribution
+
+<!-- List any AI tools that helped with this PR and what they did. Write "None" if no AI was used. Add a matching Co-Authored-By trailer to the relevant commits. See AGENTS.md. -->
+
+- None
+
 ## How to test
 
 <!-- Commands or steps a reviewer can run to verify the change. Include sample data or accounts if helpful. -->
@@ -67,6 +73,7 @@ Closes #
 - [ ] I added or updated tests for new behavior.
 - [ ] I updated README / docs where relevant.
 - [ ] I confirmed no secrets, tokens, or `.env` files are committed.
+- [ ] I attributed any AI tools that helped: a `Co-Authored-By` trailer on the commit and a note in the AI attribution section above.
 
 ## Screenshots / recordings
 
