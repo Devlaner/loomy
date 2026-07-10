@@ -139,6 +139,22 @@ export function useBoardWebSocket(
         }
       }
 
+      if (eventType === "peer.left") {
+        const leftClientId =
+          typeof data.client_id === "string" ? data.client_id : null;
+        const leftUserId =
+          typeof data.user_id === "string" ? data.user_id : null;
+        const key = leftClientId || leftUserId;
+        if (key) {
+          setRemoteCursors((prev) => {
+            if (!(key in prev)) return prev;
+            const next = { ...prev };
+            delete next[key];
+            return next;
+          });
+        }
+      }
+
       if (
         eventType === "element.updated" &&
         (data as { type?: string }).type === "excalidraw_snapshot" &&

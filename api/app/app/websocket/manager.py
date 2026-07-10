@@ -15,6 +15,10 @@ FRAME_BINARY = b"B"
 ACTIVE_CONNECTIONS: dict[str, list[WebSocket]] = {}
 _listeners: dict[str, asyncio.Task[Any]] = {}
 
+# Last-seen cursor identity per connection, so we can tell peers exactly
+# who left when the socket closes (same key shape as a cursor.moved frame).
+_CONNECTION_CURSOR_IDENTITY: dict[WebSocket, dict[str, str]] = {}
+
 
 async def _get_redis_binary() -> Redis:
     # decode_responses=False so binary Yjs frames survive the round-trip.
@@ -28,7 +32,17 @@ async def subscribe_board(websocket: WebSocket, board_id: str) -> None:
     ACTIVE_CONNECTIONS[board_id].append(websocket)
 
 
-def unsubscribe_board(websocket: WebSocket, board_id: str) -> None:
+def note_cursor_identity(websocket: WebSocket, client_id: str, user_id: str) -> None:
+    """Remember the client_id/user_id a connection last broadcast a cursor as,
+    so unsubscribe_board can tell peers exactly who left."""
+    _CONNECTION_CURSOR_IDENTITY[websocket] = {
+        "client_id": client_id,
+        "user_id": user_id,
+    }
+
+
+async def unsubscribe_board(websocket: WebSocket, board_id: str) -> None:
+    identity = _CONNECTION_CURSOR_IDENTITY.pop(websocket, None)
     if board_id in ACTIVE_CONNECTIONS:
         ACTIVE_CONNECTIONS[board_id] = [
             ws for ws in ACTIVE_CONNECTIONS[board_id] if ws != websocket
@@ -38,6 +52,14 @@ def unsubscribe_board(websocket: WebSocket, board_id: str) -> None:
             if board_id in _listeners:
                 _listeners[board_id].cancel()
                 del _listeners[board_id]
+
+    if identity is not None:
+        # Best-effort: if Redis/publish fails here, the frontend's
+        # timeout-based sweep still cleans up the stale cursor eventually.
+        try:
+            await broadcast_to_board(board_id, "peer.left", identity)
+        except Exception:
+            pass
 
 
 async def broadcast_to_board(board_id: str, event: str, payload: dict[str, Any]) -> None:

@@ -14,6 +14,7 @@ from app.modules.workspaces.repository import is_member as workspace_is_member
 from app.websocket.manager import (
     broadcast_binary_to_board,
     broadcast_to_board,
+    note_cursor_identity,
     subscribe_board,
     unsubscribe_board,
 )
@@ -90,7 +91,9 @@ async def _authenticate(websocket: WebSocket, board_id: str) -> User | None:
     return user
 
 
-async def _handle_text_frame(raw: str, board_id: str, user: User) -> None:
+async def _handle_text_frame(
+    raw: str, board_id: str, user: User, websocket: WebSocket
+) -> None:
     try:
         msg = json.loads(raw)
     except json.JSONDecodeError:
@@ -104,6 +107,9 @@ async def _handle_text_frame(raw: str, board_id: str, user: User) -> None:
     if event == "cursor.moved":
         payload["user_id"] = str(user.id)
         payload["username"] = user.username or user.email or "Anonymous"
+        client_id = payload.get("client_id")
+        if isinstance(client_id, str) and client_id:
+            note_cursor_identity(websocket, client_id, str(user.id))
     await broadcast_to_board(board_id, event, payload)
 
 
@@ -131,7 +137,7 @@ async def board_websocket(websocket: WebSocket, board_id: str) -> None:
                 if len(text.encode("utf-8", errors="ignore")) > MAX_TEXT_FRAME_BYTES:
                     await websocket.close(code=CLOSE_PAYLOAD_TOO_LARGE)
                     break
-                await _handle_text_frame(text, board_id, user)
+                await _handle_text_frame(text, board_id, user, websocket)
             elif (data := frame.get("bytes")) is not None:
                 if len(data) > MAX_BINARY_FRAME_BYTES:
                     await websocket.close(code=CLOSE_PAYLOAD_TOO_LARGE)
@@ -142,4 +148,4 @@ async def board_websocket(websocket: WebSocket, board_id: str) -> None:
     except Exception as exc:
         logger.warning("WebSocket board %s error: %s", board_id, exc)
     finally:
-        unsubscribe_board(websocket, board_id)
+        await unsubscribe_board(websocket, board_id)
