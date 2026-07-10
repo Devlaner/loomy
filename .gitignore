@@ -5,6 +5,7 @@
 !.env.example
 scripts/
 # IDE and editor
+.cursor/
 .vscode/
 memory/
 .idea/
