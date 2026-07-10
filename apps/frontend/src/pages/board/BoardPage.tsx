@@ -439,7 +439,15 @@ export function BoardPage() {
   }, [excalidrawAPI, snapshot, seedFromSnapshot, applyYjsState, readAllFiles]);
 
   useEffect(() => {
-    if (boardId != null) initialSnapshotAppliedRef.current = false;
+    if (boardId == null) return;
+    // All per-board caches, not just the snapshot-applied flag: without
+    // this, switching boards then closing the tab before the new board's
+    // first onChange fires would save the *previous* board's cached
+    // content under the *new* board's id via the beforeunload handler.
+    initialSnapshotAppliedRef.current = false;
+    latestContentRef.current = null;
+    latestElementsRef.current = [];
+    latestAppStateRef.current = undefined;
   }, [boardId]);
 
   if (!authChecked || !boardId) {
