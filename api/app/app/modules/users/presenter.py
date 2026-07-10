@@ -16,6 +16,16 @@ def display_name_of(user: User) -> str:
     return user.username or "Unknown"
 
 
+def public_display_name_of(user: User) -> str:
+    """Like display_name_of, but never falls back to the email local part —
+    used for PublicUserResponse where email must not be inferable."""
+    first = (user.first_name or "").strip()
+    last = (user.last_name or "").strip()
+    if first or last:
+        return f"{first} {last}".strip()
+    return user.username or "Unknown"
+
+
 def avatar_url_of(user: User) -> str | None:
     if user.avatar_key and storage_enabled():
         try:
@@ -44,6 +54,6 @@ def to_public_user_response(user: User) -> PublicUserResponse:
     return PublicUserResponse(
         id=user.id,
         username=user.username,
-        display_name=display_name_of(user),
+        display_name=public_display_name_of(user),
         avatar_url=avatar_url_of(user),
     )
