@@ -1,4 +1,5 @@
 import uuid
+import os
 from collections.abc import Generator
 
 import pytest
@@ -12,7 +13,10 @@ from app.main import app
 from app.modules.users.model import User
 from app.modules.workspaces.model import Workspace, WorkspaceMember
 
-TEST_DATABASE_URL = "postgresql://postgres:postgres@localhost:15432/loomy_test"
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:15432/loomy_test",
+)
 
 engine = create_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

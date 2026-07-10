@@ -1,38 +1,49 @@
 name: API CI
-
 on:
   pull_request:
     branches: [main]
     paths:
       - "api/app/**"
       - ".github/workflows/api-ci.yml"
-
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: api/app
-
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: loomy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loomy_test
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-
       - name: Set up Python
         run: uv python install 3.12
-
       - name: Install dependencies
         run: uv sync --all-extras
-
+      - name: Run migrations (test db)
+        run: uv run alembic upgrade head
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loomy_test
       - name: Ruff
         run: uv run ruff check .
-
       - name: Mypy
         run: uv run mypy .
-
       - name: Pytest
         run: uv run pytest --tb=short -q
