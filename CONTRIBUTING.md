@@ -152,6 +152,15 @@ feat(auth)!: require email verification before login
 
 Add a body when the _why_ is not obvious from the subject. Wrap at 72 columns. Reference issues in a footer (`Closes #123`, `Refs #456`).
 
+### AI-assisted contributions
+
+AI coding tools are welcome. When one helps with a change, attribute it:
+
+- Add a `Co-Authored-By: <Name> <email>` trailer to the commit for each tool that contributed.
+- List the tools and what they did in the pull request description under an "AI attribution" heading. Write "None" when no AI was involved.
+
+You stay the author and are responsible for the change. Review everything an agent produces before you commit it. See [AGENTS.md](./AGENTS.md) for the exact trailers and format.
+
 ### Enforcement
 
 Loomy enforces Conventional Commits locally via [commitlint](https://commitlint.js.org/) and runs [lint-staged](https://github.com/lint-staged/lint-staged) before each commit via [husky](https://typicode.github.io/husky/) git hooks.

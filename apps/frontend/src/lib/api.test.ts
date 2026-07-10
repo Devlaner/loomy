@@ -69,7 +69,10 @@ describe("apiFetch refresh error handling", () => {
       .mockResolvedValueOnce(new Response(null, { status: 401 }))
       .mockRejectedValueOnce(new TypeError("network error"))
       .mockResolvedValueOnce(
-        jsonResponse({ access_token: "new-token", refresh_token: "refresh-token-2" }),
+        jsonResponse({
+          access_token: "new-token",
+          refresh_token: "refresh-token-2",
+        }),
       )
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
