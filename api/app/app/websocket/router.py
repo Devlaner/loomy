@@ -126,7 +126,12 @@ async def board_websocket(websocket: WebSocket, board_id: str) -> None:
     except Exception:
         return
 
-    await subscribe_board(websocket, board_id)
+    try:
+        await subscribe_board(websocket, board_id)
+    except Exception as exc:
+        logger.warning("WebSocket board %s subscribe failed: %s", board_id, exc)
+        await websocket.close(code=CLOSE_INTERNAL_ERROR)
+        return
 
     try:
         while True:
