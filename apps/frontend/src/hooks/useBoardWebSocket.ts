@@ -3,6 +3,8 @@ import { getBoardWsUrl } from "@/lib/api";
 
 const CURSOR_EXPIRE_MS = 15_000;
 const CURSOR_SEND_THROTTLE_MS = 50;
+const RECONNECT_BASE_DELAY_MS = 1_000;
+const RECONNECT_MAX_DELAY_MS = 10_000;
 
 export interface RemoteCursor {
   x: number;
@@ -38,6 +40,10 @@ export function useBoardWebSocket(
 ) {
   const { onRemoteDocument, onRemoteBinary, onRemoteEvent } = options;
   const [connected, setConnected] = useState(false);
+  // True while a dropped connection is being retried in the background —
+  // lets the UI show "reconnecting" instead of silently doing nothing
+  // until the user notices collaboration stopped working.
+  const [reconnecting, setReconnecting] = useState(false);
   const [remoteCursors, setRemoteCursors] = useState<
     Record<string, RemoteCursor>
   >({});
@@ -80,101 +86,131 @@ export function useBoardWebSocket(
   useEffect(() => {
     if (!boardId || !token) return;
 
-    const url = getBoardWsUrl(boardId);
-    const ws = new WebSocket(url);
-    ws.binaryType = "arraybuffer";
-    wsRef.current = ws;
+    // Guards against reconnecting after this effect has been cleaned up
+    // (boardId/token changed, or the component unmounted) — closing the
+    // socket in cleanup would otherwise trigger onclose -> reconnect.
+    let torndown = false;
+    let reconnectAttempt = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-    ws.onopen = () => {
-      try {
-        ws.send(JSON.stringify({ type: "auth", token }));
-      } catch {
-        // already closed
-      }
-    };
+    const connect = () => {
+      const url = getBoardWsUrl(boardId);
+      const ws = new WebSocket(url);
+      ws.binaryType = "arraybuffer";
+      wsRef.current = ws;
 
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setConnected(false);
-
-    ws.onmessage = (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        onRemoteBinaryRef.current?.(new Uint8Array(event.data));
-        return;
-      }
-      if (typeof event.data !== "string") return;
-
-      let msg: { event?: string; data?: Record<string, unknown> };
-      try {
-        msg = JSON.parse(event.data) as typeof msg;
-      } catch {
-        return;
-      }
-      const eventType = msg.event;
-      const data = msg.data ?? {};
-
-      if (eventType === "auth.ok") {
-        setConnected(true);
-        return;
-      }
-
-      if (eventType === "cursor.moved") {
-        const senderClientId =
-          typeof data.client_id === "string" ? data.client_id : null;
-        // Self-echo only: drop our own frames. Same user in another
-        // tab has a different client_id and SHOULD still render.
-        if (senderClientId && senderClientId === clientId) return;
-        const userId = data.user_id as string | undefined;
-        const x = typeof data.x === "number" ? data.x : 0;
-        const y = typeof data.y === "number" ? data.y : 0;
-        const username =
-          typeof data.username === "string" ? data.username : "Anonymous";
-        // Key by client_id when present so two tabs of the same
-        // account don't clobber each other.
-        const key = senderClientId || userId;
-        if (key) {
-          setRemoteCursors((prev) => ({
-            ...prev,
-            [key]: { x, y, username, lastSeen: Date.now() },
-          }));
+      ws.onopen = () => {
+        try {
+          ws.send(JSON.stringify({ type: "auth", token }));
+        } catch {
+          // already closed
         }
-      }
+      };
 
-      if (eventType === "peer.left") {
-        const leftClientId =
-          typeof data.client_id === "string" ? data.client_id : null;
-        const leftUserId =
-          typeof data.user_id === "string" ? data.user_id : null;
-        const key = leftClientId || leftUserId;
-        if (key) {
-          setRemoteCursors((prev) => {
-            if (!(key in prev)) return prev;
-            const next = { ...prev };
-            delete next[key];
-            return next;
-          });
-        }
-      }
-
-      if (
-        eventType === "element.updated" &&
-        (data as { type?: string }).type === "excalidraw_snapshot" &&
-        ((data as { elements?: unknown }).elements != null ||
-          (data as { appState?: unknown }).appState != null)
-      ) {
-        onRemoteDocumentRef.current?.(
-          data as { elements?: unknown[]; appState?: unknown },
+      ws.onclose = () => {
+        setConnected(false);
+        if (torndown) return;
+        setReconnecting(true);
+        const delay = Math.min(
+          RECONNECT_BASE_DELAY_MS * 2 ** reconnectAttempt,
+          RECONNECT_MAX_DELAY_MS,
         );
-      }
+        reconnectAttempt += 1;
+        reconnectTimer = setTimeout(() => {
+          if (!torndown) connect();
+        }, delay);
+      };
+      // A real close always follows an error per the WebSocket spec, so
+      // onclose alone owns reconnect scheduling — this only updates state.
+      ws.onerror = () => setConnected(false);
 
-      if (eventType && eventType !== "auth.ok") {
-        onRemoteEventRef.current?.(eventType, data);
-      }
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          onRemoteBinaryRef.current?.(new Uint8Array(event.data));
+          return;
+        }
+        if (typeof event.data !== "string") return;
+
+        let msg: { event?: string; data?: Record<string, unknown> };
+        try {
+          msg = JSON.parse(event.data) as typeof msg;
+        } catch {
+          return;
+        }
+        const eventType = msg.event;
+        const data = msg.data ?? {};
+
+        if (eventType === "auth.ok") {
+          setConnected(true);
+          setReconnecting(false);
+          reconnectAttempt = 0;
+          return;
+        }
+
+        if (eventType === "cursor.moved") {
+          const senderClientId =
+            typeof data.client_id === "string" ? data.client_id : null;
+          // Self-echo only: drop our own frames. Same user in another
+          // tab has a different client_id and SHOULD still render.
+          if (senderClientId && senderClientId === clientId) return;
+          const userId = data.user_id as string | undefined;
+          const x = typeof data.x === "number" ? data.x : 0;
+          const y = typeof data.y === "number" ? data.y : 0;
+          const username =
+            typeof data.username === "string" ? data.username : "Anonymous";
+          // Key by client_id when present so two tabs of the same
+          // account don't clobber each other.
+          const key = senderClientId || userId;
+          if (key) {
+            setRemoteCursors((prev) => ({
+              ...prev,
+              [key]: { x, y, username, lastSeen: Date.now() },
+            }));
+          }
+        }
+
+        if (eventType === "peer.left") {
+          const leftClientId =
+            typeof data.client_id === "string" ? data.client_id : null;
+          const leftUserId =
+            typeof data.user_id === "string" ? data.user_id : null;
+          const key = leftClientId || leftUserId;
+          if (key) {
+            setRemoteCursors((prev) => {
+              if (!(key in prev)) return prev;
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
+          }
+        }
+
+        if (
+          eventType === "element.updated" &&
+          (data as { type?: string }).type === "excalidraw_snapshot" &&
+          ((data as { elements?: unknown }).elements != null ||
+            (data as { appState?: unknown }).appState != null)
+        ) {
+          onRemoteDocumentRef.current?.(
+            data as { elements?: unknown[]; appState?: unknown },
+          );
+        }
+
+        if (eventType && eventType !== "auth.ok") {
+          onRemoteEventRef.current?.(eventType, data);
+        }
+      };
     };
+
+    connect();
 
     return () => {
-      ws.close();
+      torndown = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      wsRef.current?.close();
       wsRef.current = null;
       setConnected(false);
+      setReconnecting(false);
       setRemoteCursors({});
     };
   }, [boardId, token, clientId]);
@@ -202,5 +238,5 @@ export function useBoardWebSocket(
     ws.send(data);
   }, []);
 
-  return { connected, remoteCursors, sendCursor, sendBinary };
+  return { connected, reconnecting, remoteCursors, sendCursor, sendBinary };
 }
