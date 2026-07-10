@@ -36,7 +36,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     loadLocale(lang).then((msgs) => {
+      // Discard a stale response: if `lang` changed again before this
+      // resolved, a newer effect run already owns `messages`.
+      if (cancelled) return;
       setMessages(msgs);
       setReady(true);
       try {
@@ -45,6 +49,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         // Ignore storage errors; i18n still works without persistence.
       }
     });
+    return () => {
+      cancelled = true;
+    };
   }, [lang]);
 
   const setLang = useCallback((lng: SupportedLang) => {
