@@ -1,0 +1,25 @@
+# git passes remote name/URL as $1/$2; the actual ref range to push comes
+# via stdin as "<local ref> <local sha1> <remote ref> <remote sha1>" lines.
+base="origin/main"
+git rev-parse --verify "$base" >/dev/null 2>&1 || base=$(git merge-base HEAD @{u} 2>/dev/null || echo "")
+
+if [ -n "$base" ]; then
+  changed_files=$(git diff --name-only "$base"...HEAD 2>/dev/null)
+else
+  changed_files=$(git diff --name-only HEAD~1...HEAD 2>/dev/null)
+fi
+
+echo "$changed_files" | grep -q '^api/app/' && backend_changed=1
+echo "$changed_files" | grep -q '^apps/frontend/' && frontend_changed=1
+
+if [ -n "$backend_changed" ]; then
+  echo "pre-push: backend files changed, running mypy + pytest..."
+  (cd api/app && uv run mypy . && uv run pytest --tb=short -q) || exit 1
+fi
+
+if [ -n "$frontend_changed" ]; then
+  echo "pre-push: frontend files changed, running test + build..."
+  (cd apps/frontend && npm run test && npm run build) || exit 1
+fi
+
+exit 0
