@@ -59,20 +59,27 @@ async def get_github_user_info(code: str) -> Dict[str, Any] | None:
             return None
         user_data = user_resp.json()
 
-        # Get email if not public
-        email = user_data.get("email")
-        if not email:
-            emails_resp = await client.get(
-                "https://api.github.com/user/emails",
-                headers={"Authorization": f"Bearer {access_token}"},
+        # The public /user email field has no verification info attached,
+        # so it can't be trusted for account linking -- always check
+        # /user/emails and only use an entry GitHub itself marked verified.
+        # An attacker can add an *unverified* email to their own GitHub
+        # account, so trusting an unverified address here would let them
+        # log in as whoever owns that email in Loomy.
+        email_verified = False
+        emails_resp = await client.get(
+            "https://api.github.com/user/emails",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        email = None
+        if emails_resp.status_code == 200:
+            emails = emails_resp.json()
+            primary = next(
+                (e for e in emails if e.get("primary") and e.get("verified")),
+                next((e for e in emails if e.get("verified")), None),
             )
-            if emails_resp.status_code == 200:
-                emails = emails_resp.json()
-                primary = next(
-                    (e for e in emails if e.get("primary")),
-                    emails[0] if emails else None,
-                )
-                email = primary.get("email") if primary else None
+            if primary:
+                email = primary.get("email")
+                email_verified = True
 
         name = user_data.get("name") or ""
         parts = name.split(None, 1)
@@ -83,6 +90,7 @@ async def get_github_user_info(code: str) -> Dict[str, Any] | None:
             "provider": "github",
             "provider_user_id": str(user_data["id"]),
             "email": email or f"{user_data['id']}@github.user",
+            "email_verified": email_verified,
             "username": user_data.get("login", "user"),
             "avatar_url": user_data.get("avatar_url"),
             "first_name": first_name,
@@ -127,10 +135,22 @@ async def get_google_user_info(code: str) -> Dict[str, Any] | None:
         if not first_name:
             first_name = "User"
 
+        # Google's userinfo response includes `email_verified` per address;
+        # only trust it for account linking when true, same reasoning as
+        # the GitHub path above -- an unverified email must not be usable
+        # to take over an existing account that happens to share it.
+        raw_email = user_data.get("email", "")
+        email_verified = bool(user_data.get("email_verified"))
+        provider_user_id = user_data.get("sub", "")
+        email = raw_email if email_verified and raw_email else (
+            f"{provider_user_id}@google.user"
+        )
+
         return {
             "provider": "google",
-            "provider_user_id": user_data.get("sub", ""),
-            "email": user_data.get("email", ""),
+            "provider_user_id": provider_user_id,
+            "email": email,
+            "email_verified": email_verified and bool(raw_email),
             "username": user_data.get("name", "user").replace(" ", "").lower()[:50],
             "avatar_url": user_data.get("picture"),
             "first_name": first_name,
