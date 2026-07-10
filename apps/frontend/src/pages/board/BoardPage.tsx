@@ -211,6 +211,7 @@ export function BoardPage() {
   );
 
   const {
+    reconnecting,
     remoteCursors,
     sendCursor,
     syncLocalChanges,
@@ -517,6 +518,11 @@ export function BoardPage() {
       )}
       <div className="flex-1 min-h-0 flex">
         <div className="flex-1 min-h-0 relative" ref={containerRef}>
+          {reconnecting && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-secondary)] shadow-sm">
+              Reconnecting…
+            </div>
+          )}
           {contentLoading ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-[var(--text-muted)]">Loading canvas...</div>
