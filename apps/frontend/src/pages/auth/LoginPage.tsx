@@ -13,7 +13,7 @@ export function LoginPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const setTokens = useAuthStore((s) => s.setTokens);
+  const setToken = useAuthStore((s) => s.setToken);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,6 +26,7 @@ export function LoginPage() {
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
@@ -34,10 +35,7 @@ export function LoginPage() {
         setError(formatApiError(data.detail, "Login failed"));
         return;
       }
-      setTokens({
-        token: data.access_token,
-        refreshToken: data.refresh_token ?? null,
-      });
+      setToken(data.access_token);
       const inviteToken = searchParams.get("invite_token");
       if (inviteToken) {
         const acceptRes = await fetch(

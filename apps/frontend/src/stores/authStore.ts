@@ -13,15 +13,12 @@ export interface AuthUser {
 }
 
 interface AuthState {
+  // Short-lived access token only. The refresh token lives exclusively
+  // in an httpOnly cookie set by the backend -- it's never readable by
+  // JS, so it has no place in this client-side store.
   token: string | null;
-  refreshToken: string | null;
   user: AuthUser | null;
   setToken: (token: string | null) => void;
-  setRefreshToken: (token: string | null) => void;
-  setTokens: (tokens: {
-    token: string | null;
-    refreshToken?: string | null;
-  }) => void;
   setUser: (user: AuthUser | null) => void;
   logout: () => void;
 }
@@ -30,22 +27,14 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
-      refreshToken: null,
       user: null,
       setToken: (token) => set({ token }),
-      setRefreshToken: (refreshToken) => set({ refreshToken }),
-      setTokens: ({ token, refreshToken }) =>
-        set((s) => ({
-          token,
-          refreshToken:
-            refreshToken === undefined ? s.refreshToken : refreshToken,
-        })),
       setUser: (user) => set({ user }),
-      logout: () => set({ token: null, refreshToken: null, user: null }),
+      logout: () => set({ token: null, user: null }),
     }),
     {
       name: "loomy-auth",
-      partialize: (s) => ({ token: s.token, refreshToken: s.refreshToken }),
+      partialize: (s) => ({ token: s.token }),
     },
   ),
 );

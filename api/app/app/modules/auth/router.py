@@ -1,6 +1,6 @@
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -28,13 +28,12 @@ from app.modules.auth.schemas import (
     EmailVerificationConfirm,
     EmailVerificationRequest,
     LoginRequest,
-    LogoutRequest,
     LogoutResponse,
     PasswordResetConfirm,
     PasswordResetRequest,
-    RefreshRequest,
     SimpleStatusResponse,
     Token,
+    TokenResponse,
 )
 from app.modules.auth.service import (
     get_or_create_oauth_user,
@@ -49,12 +48,31 @@ from app.modules.users.schemas import UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+REFRESH_COOKIE_NAME = "refresh_token"
+# Scoped to /api/auth so it's only ever sent on refresh/logout, not on
+# every request to the API.
+REFRESH_COOKIE_PATH = "/api/auth"
 
-def _oauth_redirect_url(token: Token, invite_token: str | None) -> str:
+
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+        httponly=True,
+        secure=settings.environment == "production",
+        samesite="lax",
+        path=REFRESH_COOKIE_PATH,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(key=REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+
+
+def _oauth_redirect_url(access_token: str, invite_token: str | None) -> str:
     base = f"{settings.frontend_url.rstrip('/')}/auth/callback"
-    params = [f"token={token.access_token}"]
-    if token.refresh_token:
-        params.append(f"refresh_token={token.refresh_token}")
+    params = [f"token={access_token}"]
     if invite_token:
         params.append(f"invite_token={invite_token}")
     return f"{base}?{'&'.join(params)}"
@@ -67,9 +85,10 @@ def get_current_user_profile(
     return to_user_response(current_user)
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=TokenResponse)
 def login_endpoint(
     data: LoginRequest,
+    response: Response,
     db: Session = Depends(get_db),
     _rl: None = Depends(enforce_login_rate_limit),
 ) -> Token:
@@ -79,23 +98,36 @@ def login_endpoint(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
+    if token.refresh_token:
+        _set_refresh_cookie(response, token.refresh_token)
     return token
 
 
-@router.post("/refresh", response_model=Token)
-def refresh_endpoint(data: RefreshRequest) -> Token:
-    token = rotate_refresh_token(data.refresh_token)
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_endpoint(request: Request, response: Response) -> Token:
+    refresh_token = request.cookies.get(REFRESH_COOKIE_NAME)
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing refresh token",
+        )
+    token = rotate_refresh_token(refresh_token)
     if not token:
+        _clear_refresh_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         )
+    if token.refresh_token:
+        _set_refresh_cookie(response, token.refresh_token)
     return token
 
 
 @router.post("/logout", response_model=LogoutResponse)
-def logout_endpoint(data: LogoutRequest) -> LogoutResponse:
-    logout(data.refresh_token)
+def logout_endpoint(request: Request, response: Response) -> LogoutResponse:
+    refresh_token = request.cookies.get(REFRESH_COOKIE_NAME)
+    logout(refresh_token)
+    _clear_refresh_cookie(response)
     return LogoutResponse()
 
 
@@ -205,7 +237,12 @@ async def github_callback(
     token_pair = issue_token_pair(str(user.id))
     raw_invite = state_data.get("invite_token")
     invite_token = raw_invite if isinstance(raw_invite, str) and raw_invite else None
-    return RedirectResponse(url=_oauth_redirect_url(token_pair, invite_token))
+    redirect = RedirectResponse(
+        url=_oauth_redirect_url(token_pair.access_token, invite_token)
+    )
+    if token_pair.refresh_token:
+        _set_refresh_cookie(redirect, token_pair.refresh_token)
+    return redirect
 
 
 @router.get("/google")
@@ -246,4 +283,9 @@ async def google_callback(
     token_pair = issue_token_pair(str(user.id))
     raw_invite = state_data.get("invite_token")
     invite_token = raw_invite if isinstance(raw_invite, str) and raw_invite else None
-    return RedirectResponse(url=_oauth_redirect_url(token_pair, invite_token))
+    redirect = RedirectResponse(
+        url=_oauth_redirect_url(token_pair.access_token, invite_token)
+    )
+    if token_pair.refresh_token:
+        _set_refresh_cookie(redirect, token_pair.refresh_token)
+    return redirect

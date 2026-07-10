@@ -59,14 +59,13 @@ async function refreshAccessToken(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
 
   const run = async (): Promise<string | null> => {
-    const refreshToken = useAuthStore.getState().refreshToken;
-    if (!refreshToken) return null;
-
+    // The refresh token itself is never visible to JS -- it lives only
+    // in the httpOnly `refresh_token` cookie (scoped to /api/auth) and
+    // is sent automatically by the browser via credentials: "include".
     const attemptRefresh = () =>
       fetch(`${API_BASE}/api/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        credentials: "include",
       });
 
     let res: Response;
@@ -91,22 +90,17 @@ async function refreshAccessToken(): Promise<string | null> {
 
     if (!res.ok) {
       // A real response from the server saying the refresh token itself
-      // is invalid/expired -- this is a confirmed-dead session.
+      // is invalid/expired (or there was no cookie at all) -- this is a
+      // confirmed-dead session.
       useAuthStore.getState().logout();
       return null;
     }
-    const data: {
-      access_token?: string;
-      refresh_token?: string | null;
-    } = await res.json();
+    const data: { access_token?: string } = await res.json();
     if (!data.access_token) {
       useAuthStore.getState().logout();
       return null;
     }
-    useAuthStore.getState().setTokens({
-      token: data.access_token,
-      refreshToken: data.refresh_token ?? null,
-    });
+    useAuthStore.getState().setToken(data.access_token);
     return data.access_token;
   };
 
@@ -117,17 +111,13 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 export async function logoutAndClear(): Promise<void> {
-  const refreshToken = useAuthStore.getState().refreshToken;
-  if (refreshToken) {
-    try {
-      await fetch(`${API_BASE}/api/auth/logout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-    } catch {
-      // Clear locally even if the server call fails; refresh TTL bounds damage.
-    }
+  try {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // Clear locally even if the server call fails; refresh TTL bounds damage.
   }
   useAuthStore.getState().logout();
 }
@@ -139,19 +129,20 @@ export async function apiFetch(
   const token = getToken();
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
+    credentials: "include",
     headers: buildHeaders(options.headers, token),
   });
 
-  // Skip the refresh path itself to avoid infinite recursion.
-  if (
-    response.status === 401 &&
-    !path.startsWith("/api/auth/refresh") &&
-    useAuthStore.getState().refreshToken
-  ) {
+  // Skip the refresh path itself to avoid infinite recursion. There's no
+  // client-visible way to know whether a refresh_token cookie exists, so
+  // any other 401 is worth one refresh attempt -- the backend just
+  // returns 401 again immediately if there's no cookie to use.
+  if (response.status === 401 && !path.startsWith("/api/auth/refresh")) {
     const fresh = await refreshAccessToken();
     if (fresh) {
       return fetch(`${API_BASE}${path}`, {
         ...options,
+        credentials: "include",
         headers: buildHeaders(options.headers, fresh),
       });
     }

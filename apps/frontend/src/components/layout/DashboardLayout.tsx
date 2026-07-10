@@ -9,8 +9,6 @@ import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { useAuthStore } from "@/stores/authStore";
 import { useDashboardStore } from "@/stores/dashboardStore";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
 export interface DashboardOutletContext {
   workspaces: { id: string; name: string; owner_id: string }[];
   selectedWorkspaceId: string | null;
@@ -58,9 +56,7 @@ export function DashboardLayout() {
       navigate("/login");
       return;
     }
-    fetch(`${API_BASE}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    apiFetch("/api/auth/me")
       .then((res) => {
         if (!res.ok) {
           logout();

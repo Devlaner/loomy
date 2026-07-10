@@ -2,22 +2,27 @@ from pydantic import BaseModel, EmailStr
 
 
 class Token(BaseModel):
+    """Internal shape returned by the auth service layer. Never sent to
+    the client as-is -- routes use TokenResponse (no refresh_token) and
+    set the refresh token as an httpOnly cookie instead."""
+
     access_token: str
     token_type: str = "bearer"
     refresh_token: str | None = None
 
 
+class TokenResponse(BaseModel):
+    """What actually goes in the JSON body of login/refresh/OAuth
+    responses. The refresh token travels only via the httpOnly
+    `refresh_token` cookie, never in a response client-side JS can read."""
+
+    access_token: str
+    token_type: str = "bearer"
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
-class LogoutRequest(BaseModel):
-    refresh_token: str | None = None
 
 
 class LogoutResponse(BaseModel):
