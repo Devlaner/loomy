@@ -38,3 +38,8 @@ class ElementListResponse(BaseModel):
 class ElementBulkUpdate(BaseModel):
     board_id: UUID
     updates: List[ElementData]  # [{"id": "uuid", "data": {...}}]
+
+
+class SnapshotUpsert(BaseModel):
+    board_id: UUID
+    data: ElementData = {}
