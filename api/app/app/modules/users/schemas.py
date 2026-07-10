@@ -32,3 +32,16 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PublicUserResponse(BaseModel):
+    """Reduced profile shape returned to users who don't share a workspace
+    with the target user. Deliberately omits email / email_verified / names
+    to avoid PII leakage (see issue #25)."""
+
+    id: UUID
+    username: str
+    display_name: str
+    avatar_url: str | None = None
+
+    model_config = {"from_attributes": True}

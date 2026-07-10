@@ -1,7 +1,7 @@
 from app.config import settings
 from app.core.storage import is_enabled as storage_enabled, presign_get_url
 from app.modules.users.model import User
-from app.modules.users.schemas import UserResponse
+from app.modules.users.schemas import PublicUserResponse, UserResponse
 
 
 def display_name_of(user: User) -> str:
@@ -37,4 +37,13 @@ def to_user_response(user: User) -> UserResponse:
         email_verified=user.email_verified,
         created_at=user.created_at,
         updated_at=user.updated_at,
+    )
+
+
+def to_public_user_response(user: User) -> PublicUserResponse:
+    return PublicUserResponse(
+        id=user.id,
+        username=user.username,
+        display_name=display_name_of(user),
+        avatar_url=avatar_url_of(user),
     )

@@ -1,5 +1,6 @@
 import logging
 import secrets
+from typing import Union
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -15,9 +16,15 @@ from app.core.storage import (
 )
 from app.db.session import get_db
 from app.modules.users.model import User
-from app.modules.users.presenter import to_user_response
-from app.modules.users.schemas import UserCreate, UserResponse, UserUpdate
+from app.modules.users.presenter import to_user_response, to_public_user_response
+from app.modules.users.schemas import (
+    PublicUserResponse,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
 from app.modules.users.service import get_user_by_id, register_user
+from app.modules.workspaces.repository import shares_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -33,18 +40,20 @@ ALLOWED_IMAGE_TYPES = {
 }
 
 
-@router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}", response_model=Union[UserResponse, PublicUserResponse])
 def get_user(
     user_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> UserResponse:
+) -> UserResponse | PublicUserResponse:
     user = get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-    return to_user_response(user)
+    if shares_workspace(db, current_user.id, user_id):
+        return to_user_response(user)
+    return to_public_user_response(user)
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
