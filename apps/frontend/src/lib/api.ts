@@ -53,43 +53,66 @@ function buildHeaders(
 // so parallel calls would invalidate each other.
 let refreshInFlight: Promise<string | null> | null = null;
 
+const REFRESH_NETWORK_RETRY_DELAY_MS = 500;
+
 async function refreshAccessToken(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
 
   const run = async (): Promise<string | null> => {
     const refreshToken = useAuthStore.getState().refreshToken;
     if (!refreshToken) return null;
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+
+    const attemptRefresh = () =>
+      fetch(`${API_BASE}/api/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
-      if (!res.ok) {
-        useAuthStore.getState().logout();
-        return null;
-      }
-      const data: {
-        access_token?: string;
-        refresh_token?: string | null;
-      } = await res.json();
-      if (!data.access_token) {
-        useAuthStore.getState().logout();
-        return null;
-      }
-      useAuthStore.getState().setTokens({
-        token: data.access_token,
-        refreshToken: data.refresh_token ?? null,
-      });
-      return data.access_token;
+
+    let res: Response;
+    try {
+      res = await attemptRefresh();
     } catch {
-      return null;
-    } finally {
-      refreshInFlight = null;
+      // A thrown fetch error here is a network-level failure (offline,
+      // DNS, server unreachable) -- distinct from a confirmed-invalid
+      // session (explicit non-2xx below). Retry once after a short delay:
+      // most real-world blips are transient, and treating this the same
+      // as an explicit 401 would log the user out over a flaky connection.
+      await new Promise((r) => setTimeout(r, REFRESH_NETWORK_RETRY_DELAY_MS));
+      try {
+        res = await attemptRefresh();
+      } catch {
+        // Still a network-level failure: leave auth state untouched. We
+        // deliberately do NOT call logout() here -- the session hasn't
+        // been confirmed invalid, only unreachable.
+        return null;
+      }
     }
+
+    if (!res.ok) {
+      // A real response from the server saying the refresh token itself
+      // is invalid/expired -- this is a confirmed-dead session.
+      useAuthStore.getState().logout();
+      return null;
+    }
+    const data: {
+      access_token?: string;
+      refresh_token?: string | null;
+    } = await res.json();
+    if (!data.access_token) {
+      useAuthStore.getState().logout();
+      return null;
+    }
+    useAuthStore.getState().setTokens({
+      token: data.access_token,
+      refreshToken: data.refresh_token ?? null,
+    });
+    return data.access_token;
   };
 
-  refreshInFlight = run();
+  refreshInFlight = run().finally(() => {
+    refreshInFlight = null;
+  });
   return refreshInFlight;
 }
 
