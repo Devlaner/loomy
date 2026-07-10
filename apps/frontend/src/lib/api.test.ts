@@ -15,7 +15,6 @@ describe("apiFetch refresh error handling", () => {
     vi.useFakeTimers();
     useAuthStore.setState({
       token: "old-access-token",
-      refreshToken: "refresh-token-1",
       user: null,
     });
   });
@@ -43,8 +42,9 @@ describe("apiFetch refresh error handling", () => {
 
     expect(result.status).toBe(401);
     // A network-level failure during refresh must NOT be treated as a
-    // confirmed-dead session: auth state should be untouched.
-    expect(useAuthStore.getState().refreshToken).toBe("refresh-token-1");
+    // confirmed-dead session: the access token should be untouched. The
+    // refresh token itself lives only in an httpOnly cookie the browser
+    // manages -- there's nothing client-side to assert on for it.
     expect(useAuthStore.getState().token).toBe("old-access-token");
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -59,7 +59,6 @@ describe("apiFetch refresh error handling", () => {
     const result = await apiFetch("/api/boards");
 
     expect(result.status).toBe(401);
-    expect(useAuthStore.getState().refreshToken).toBeNull();
     expect(useAuthStore.getState().token).toBeNull();
   });
 
@@ -68,9 +67,7 @@ describe("apiFetch refresh error handling", () => {
       .fn()
       .mockResolvedValueOnce(new Response(null, { status: 401 }))
       .mockRejectedValueOnce(new TypeError("network error"))
-      .mockResolvedValueOnce(
-        jsonResponse({ access_token: "new-token", refresh_token: "refresh-token-2" }),
-      )
+      .mockResolvedValueOnce(jsonResponse({ access_token: "new-token" }))
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -80,6 +77,17 @@ describe("apiFetch refresh error handling", () => {
 
     expect(result.status).toBe(200);
     expect(useAuthStore.getState().token).toBe("new-token");
-    expect(useAuthStore.getState().refreshToken).toBe("refresh-token-2");
+  });
+
+  it("sends credentials: include so the httpOnly refresh_token cookie is attached", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiFetch("/api/boards");
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.credentials).toBe("include");
   });
 });

@@ -1,6 +1,7 @@
 /**
- * OAuth callback — API redirects here with ?token=...&refresh_token=...
- * Stores the token pair and navigates to the dashboard.
+ * OAuth callback — API redirects here with ?token=... . The refresh
+ * token is never in this URL: the backend sets it as an httpOnly cookie
+ * directly on the redirect response, before the browser ever lands here.
  */
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -10,9 +11,8 @@ import { useAuthStore } from "@/stores/authStore";
 export function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const setTokens = useAuthStore((s) => s.setTokens);
+  const setToken = useAuthStore((s) => s.setToken);
   const token = searchParams.get("token");
-  const refreshToken = searchParams.get("refresh_token");
   const inviteToken = searchParams.get("invite_token");
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -22,7 +22,7 @@ export function AuthCallbackPage() {
       return;
     }
 
-    setTokens({ token, refreshToken: refreshToken ?? null });
+    setToken(token);
     const acceptMaybe = async () => {
       if (inviteToken) {
         await fetch(
@@ -39,7 +39,7 @@ export function AuthCallbackPage() {
       navigate("/dashboard", { replace: true });
     };
     void acceptMaybe();
-  }, [token, refreshToken, inviteToken, navigate, setTokens, API_BASE]);
+  }, [token, inviteToken, navigate, setToken, API_BASE]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
