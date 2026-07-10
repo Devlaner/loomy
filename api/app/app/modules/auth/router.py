@@ -126,7 +126,21 @@ def password_reset_confirm_endpoint(
             detail="Invalid or expired reset token.",
         )
     if result.user_id:
-        revoke_all_user_refresh_tokens(result.user_id)
+        revoked = revoke_all_user_refresh_tokens(result.user_id)
+        if revoked is None:
+            # The password itself was already changed -- don't pretend
+            # that didn't happen -- but we can't guarantee any refresh
+            # token an attacker holds was actually invalidated, which is
+            # the whole point of revoking on reset. Surface that instead
+            # of silently reporting full success.
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "Your password was changed, but we couldn't confirm "
+                    "your other sessions were signed out. Please sign "
+                    "out of other devices manually, or try again shortly."
+                ),
+            )
     return SimpleStatusResponse()
 
 
