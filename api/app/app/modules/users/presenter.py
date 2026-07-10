@@ -1,7 +1,7 @@
 from app.config import settings
 from app.core.storage import is_enabled as storage_enabled, presign_get_url
 from app.modules.users.model import User
-from app.modules.users.schemas import UserResponse
+from app.modules.users.schemas import PublicUserResponse, UserResponse
 
 
 def display_name_of(user: User) -> str:
@@ -13,6 +13,16 @@ def display_name_of(user: User) -> str:
         local = user.email.split("@", 1)[0]
         if local:
             return local
+    return user.username or "Unknown"
+
+
+def public_display_name_of(user: User) -> str:
+    """Like display_name_of, but never falls back to the email local part —
+    used for PublicUserResponse where email must not be inferable."""
+    first = (user.first_name or "").strip()
+    last = (user.last_name or "").strip()
+    if first or last:
+        return f"{first} {last}".strip()
     return user.username or "Unknown"
 
 
@@ -37,4 +47,13 @@ def to_user_response(user: User) -> UserResponse:
         email_verified=user.email_verified,
         created_at=user.created_at,
         updated_at=user.updated_at,
+    )
+
+
+def to_public_user_response(user: User) -> PublicUserResponse:
+    return PublicUserResponse(
+        id=user.id,
+        username=user.username,
+        display_name=public_display_name_of(user),
+        avatar_url=avatar_url_of(user),
     )

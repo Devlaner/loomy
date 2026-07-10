@@ -202,3 +202,23 @@ def list_workspace_invitations(
     if pending_only:
         query = query.filter(WorkspaceInvitation.accepted_at.is_(None))
     return query.order_by(WorkspaceInvitation.created_at.desc()).all()
+
+
+def shares_workspace(db: Session, user_id_a: UUID, user_id_b: UUID) -> bool:
+    """True if the two users are the same person or are both members of at
+    least one common workspace (owners are members too, via `create()`)."""
+    if user_id_a == user_id_b:
+        return True
+    member_workspace_ids = (
+        db.query(WorkspaceMember.workspace_id)
+        .filter(WorkspaceMember.user_id == user_id_b)
+    )
+    return (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.user_id == user_id_a,
+            WorkspaceMember.workspace_id.in_(member_workspace_ids),
+        )
+        .first()
+        is not None
+    )
