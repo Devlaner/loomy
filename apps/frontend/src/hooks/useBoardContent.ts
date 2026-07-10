@@ -58,30 +58,13 @@ export function useBoardContent(boardId: string | null) {
     async (content: ExcalidrawSnapshot) => {
       if (!boardId) return;
       try {
-        const listRes = await apiFetch(
-          `/api/elements?board_id=${boardId}&page=1&limit=500`,
-        );
-        if (!listRes.ok) return;
-        const listData = await listRes.json();
-        const existing = listData.items?.find(
-          (e: { type: string }) => e.type === SNAPSHOT_TYPE,
-        );
-
-        if (existing) {
-          await apiFetch(`/api/elements/${existing.id}`, {
-            method: "PATCH",
-            body: JSON.stringify({ data: content }),
-          });
-        } else {
-          await apiFetch("/api/elements", {
-            method: "POST",
-            body: JSON.stringify({
-              board_id: boardId,
-              type: SNAPSHOT_TYPE,
-              data: content,
-            }),
-          });
-        }
+        // Atomic upsert server-side -- no GET-then-decide-POST/PATCH step,
+        // so overlapping saves (e.g. a debounced save racing a beforeunload
+        // save) can no longer create duplicate snapshot rows for the board.
+        await apiFetch("/api/elements/snapshot", {
+          method: "PUT",
+          body: JSON.stringify({ board_id: boardId, data: content }),
+        });
       } catch {
         // Silent fail for auto-save
       }

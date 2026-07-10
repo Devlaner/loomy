@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.modules.boards.repository import get_by_id as get_board
-from app.modules.elements.model import Element
+from app.modules.elements.model import Element, ElementData
 from app.modules.elements.repository import (
     bulk_update_data,
     create as create_element,
@@ -12,6 +12,7 @@ from app.modules.elements.repository import (
     get_by_id,
     get_by_board,
     update as update_element,
+    upsert_snapshot,
 )
 from app.modules.elements.schemas import ElementCreate, ElementUpdate
 from app.modules.users.model import User
@@ -74,3 +75,12 @@ def bulk_update_elements(
     if not board or not workspace_is_member(db, board.workspace_id, user.id):
         return None
     return bulk_update_data(db, board_id, updates)
+
+
+def upsert_snapshot_for_user(
+    db: Session, board_id: UUID, user: User, data: ElementData
+) -> Element | None:
+    board = get_board(db, board_id)
+    if not board or not workspace_is_member(db, board.workspace_id, user.id):
+        return None
+    return upsert_snapshot(db, board_id=board_id, data=data)

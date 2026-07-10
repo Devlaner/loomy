@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 
 ElementData = dict[str, Any]
 
+# Singleton element type: a board has at most one of these, enforced by
+# a partial unique index (see alembic revision 00425b753873).
+SNAPSHOT_ELEMENT_TYPE = "excalidraw_snapshot"
+
 
 class Element(Base):
     __tablename__ = "elements"

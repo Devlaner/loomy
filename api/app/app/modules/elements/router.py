@@ -12,6 +12,7 @@ from app.modules.elements.schemas import (
     ElementListResponse,
     ElementResponse,
     ElementUpdate,
+    SnapshotUpsert,
 )
 from app.modules.elements.service import (
     bulk_update_elements,
@@ -20,6 +21,7 @@ from app.modules.elements.service import (
     get_element,
     list_elements,
     update_element_for_user,
+    upsert_snapshot_for_user,
 )
 from app.modules.users.model import User
 
@@ -41,6 +43,30 @@ def list_elements_endpoint(
         page=page,
         limit=limit,
     )
+
+
+@router.put("/snapshot", response_model=ElementResponse)
+def upsert_snapshot_endpoint(
+    body: SnapshotUpsert,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ElementResponse:
+    """Atomic insert-or-update of a board's excalidraw_snapshot element.
+
+    Replaces the old client-side GET-list-then-POST-or-PATCH pattern,
+    which raced under concurrent saves (e.g. a debounced save overlapping
+    a beforeunload save) and could create duplicate snapshot rows for the
+    same board.
+    """
+    element = upsert_snapshot_for_user(db, body.board_id, current_user, body.data)
+    if not element:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Board not found or unauthorized",
+        )
+    resp = ElementResponse.model_validate(element)
+    publish_board_event(str(body.board_id), "element.updated", resp.model_dump(mode="json"))
+    return resp
 
 
 @router.get("/{element_id}", response_model=ElementResponse)
