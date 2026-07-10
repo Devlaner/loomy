@@ -2,6 +2,7 @@ import logging
 
 from fastapi import HTTPException, Request, status
 
+from app.core.client_ip import get_client_ip
 from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
@@ -11,17 +12,8 @@ LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_RL_PREFIX = "login_rl"
 
 
-def _client_ip(request: Request) -> str:
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        first = xff.split(",", 1)[0].strip()
-        if first:
-            return first
-    return request.client.host if request.client else "unknown"
-
-
 def enforce_login_rate_limit(request: Request) -> None:
-    ip = _client_ip(request)
+    ip = get_client_ip(request)
     key = f"{LOGIN_RL_PREFIX}:{ip}"
     try:
         redis = get_redis()

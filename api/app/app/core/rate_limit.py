@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.client_ip import get_client_ip
 from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         try:
             redis = get_redis()
-            client_ip = request.client.host if request.client else "unknown"
+            client_ip = get_client_ip(request)
             key = f"{self.key_prefix}:{client_ip}"
 
             pipe = redis.pipeline()

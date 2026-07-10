@@ -39,6 +39,13 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:5173"
 
+    # Comma-separated CIDRs (e.g. "10.0.0.0/8,172.16.0.0/12") of reverse
+    # proxies/load balancers allowed to set X-Forwarded-For. Left empty by
+    # default: a client-supplied XFF is never trusted unless the direct
+    # TCP peer is in this list, so rate limiting can't be bypassed by
+    # sending an arbitrary XFF header directly to an exposed API.
+    trusted_proxy_cidrs: str = ""
+
     email_backend: Literal["console", "smtp"] = "console"
     smtp_host: str = ""
     smtp_port: int = 587
